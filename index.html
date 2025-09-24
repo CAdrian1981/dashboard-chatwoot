@@ -10,44 +10,183 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 20px;
-            background-color: #1A202C; /* Fondo oscuro */
-            color: #FFFFFF;
+            padding: 15px;
+            background-color: #f8f9fa;
+            color: #333;
         }
-        .chart-container {
-            position: relative;
+        .dashboard-container {
             width: 100%;
             max-width: 900px;
             margin: auto;
-            border-radius: 12px;
-            background: #2D3748; /* Contenedor oscuro */
-            padding: 25px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
-            border: 1px solid #4A5568;
         }
-        h2 {
+        .kpi-section-title {
             text-align: center;
-            color: #FFFFFF;
-            margin-top: 0;
-            margin-bottom: 25px;
+            font-size: 1.2em;
             font-weight: 600;
+            color: #495057;
+            margin-bottom: 15px;
+        }
+        .kpi-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .kpi-card {
+            background: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            text-align: center;
+        }
+        .kpi-title {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin: 0 0 5px 0;
+        }
+        .kpi-value {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #000;
+            margin: 0;
+        }
+        .chart-container {
+            position: relative;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            max-height: 450px; 
+        }
+        .table-container {
+            margin-top: 25px;
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        #filterInput {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+        .data-table-wrapper {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        th {
+            cursor: pointer;
+            background-color: #f1f3f5;
+        }
+        th:hover {
+            background-color: #e9ecef;
         }
     </style>
 </head>
 <body>
 
-    <div class="chart-container">
-        <h2>Evolución de Fibras Brutas por PDV</h2>
-        <canvas id="salesChart"></canvas>
+    <div class="dashboard-container">
+        
+        <h3 id="kpi-month-title" class="kpi-section-title"></h3>
+        
+        <div class="kpi-container">
+            <div class="kpi-card">
+                <p class="kpi-title">Total Fibras Brutas</p>
+                <p class="kpi-value" id="total-fibra-bruta">0</p>
+            </div>
+            <div class="kpi-card">
+                <p class="kpi-title">Total Mov. Activos</p>
+                <p class="kpi-value" id="total-mov-activo">0</p>
+            </div>
+            <div class="kpi-card">
+                <p class="kpi-title">Total Mov. en Vuelo</p>
+                <p class="kpi-value" id="total-mov-vuelo">0</p>
+            </div>
+            <div class="kpi-card">
+                <p class="kpi-title">Prom. % Línea Gratis</p>
+                <p class="kpi-value" id="avg-linea-gratis">0%</p>
+            </div>
+            <div class="kpi-card">
+                <p class="kpi-title">Prom. Días Instal.</p>
+                <p class="kpi-value" id="avg-dias-instal">0</p>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="salesChart"></canvas>
+        </div>
+
+        <div class="table-container">
+            <input type="text" id="filterInput" placeholder="Filtrar datos de la tabla...">
+            <div class="data-table-wrapper">
+                <table id="dataTable">
+                    <thead>
+                        <tr>
+                            <th data-column="Mes">Mes</th>
+                            <th data-column="ID PDV">ID PDV</th>
+                            <th data-column="Fibras brutas">Fibras Brutas</th>
+                            <th data-column="Mov activos">Mov. Activos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
     </div>
 
     <script>
-        // 3. Pega aquí el resultado JSON que obtuviste de tu webhook de n8n.
         const salesData = [{"Mes":"202404","ID PDV":"57317","Fibras brutas":9,"Mov activos":"8","Fibra activa":5,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"13.89","% Linea gratis":0.29},{"Mes":"202405","ID PDV":"57317","Fibras brutas":3,"Mov activos":"20","Fibra activa":7,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"5.00","% Linea gratis":0.14},{"Mes":"202405","ID PDV":"55632","Fibras brutas":1,"Mov activos":"2","Fibra activa":1,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"13.00","% Linea gratis":0},{"Mes":"202406","ID PDV":"57317","Fibras brutas":6,"Mov activos":"12","Fibra activa":5,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"3.17","% Linea gratis":0.71},{"Mes":"202407","ID PDV":"55632","Fibras brutas":0,"Mov activos":"1","Fibra activa":0,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":null,"% Linea gratis":null},{"Mes":"202408","ID PDV":"57317","Fibras brutas":2,"Mov activos":"20","Fibra activa":2,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"10.00","% Linea gratis":0.19},{"Mes":"202408","ID PDV":"55632","Fibras brutas":1,"Mov activos":"0","Fibra activa":1,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"5.00","% Linea gratis":null},{"Mes":"202409","ID PDV":"57317","Fibras brutas":2,"Mov activos":"11","Fibra activa":4,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"14.67","% Linea gratis":0},{"Mes":"202409","ID PDV":"55632","Fibras brutas":0,"Mov activos":"1","Fibra activa":0,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":null,"% Linea gratis":null},{"Mes":"202410","ID PDV":"57317","Fibras brutas":3,"Mov activos":"8","Fibra activa":2,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"5.67","% Linea gratis":0},{"Mes":"202410","ID PDV":"55632","Fibras brutas":1,"Mov activos":"0","Fibra activa":1,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"10.00","% Linea gratis":null},{"Mes":"202411","ID PDV":"57317","Fibras brutas":4,"Mov activos":"5","Fibra activa":3,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"18.50","% Linea gratis":0},{"Mes":"202411","ID PDV":"55632","Fibras brutas":0,"Mov activos":"1","Fibra activa":0,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":null,"% Linea gratis":null},{"Mes":"202501","ID PDV":"57317","Fibras brutas":3,"Mov activos":"7","Fibra activa":3,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"5.67","% Linea gratis":0.2},{"Mes":"202501","ID PDV":"55632","Fibras brutas":1,"Mov activos":"0","Fibra activa":1,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"8.00","% Linea gratis":null},{"Mes":"202502","ID PDV":"57317","Fibras brutas":1,"Mov activos":"10","Fibra activa":2,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"6.00","% Linea gratis":0.11},{"Mes":"202502","ID PDV":"55632","Fibras brutas":0,"Mov activos":"1","Fibra activa":0,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":null,"% Linea gratis":null},{"Mes":"202503","ID PDV":"57317","Fibras brutas":2,"Mov activos":"10","Fibra activa":1,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"5.00","% Linea gratis":0.11},{"Mes":"202503","ID PDV":"55632","Fibras brutas":0,"Mov activos":"2","Fibra activa":0,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":null,"% Linea gratis":0},{"Mes":"202504","ID PDV":"57317","Fibras brutas":5,"Mov activos":"14","Fibra activa":6,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"3.40","% Linea gratis":0.13},{"Mes":"202504","ID PDV":"55632","Fibras brutas":0,"Mov activos":"3","Fibra activa":0,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":null,"% Linea gratis":0},{"Mes":"202505","ID PDV":"57317","Fibras brutas":4,"Mov activos":"5","Fibra activa":4,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"3.80","% Linea gratis":0.33},{"Mes":"202506","ID PDV":"57317","Fibras brutas":3,"Mov activos":"11","Fibra activa":4,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"5.33","% Linea gratis":0.14},{"Mes":"202506","ID PDV":"55632","Fibras brutas":0,"Mov activos":"1","Fibra activa":0,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":null,"% Linea gratis":0},{"Mes":"202507","ID PDV":"57317","Fibras brutas":4,"Mov activos":"7","Fibra activa":3,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"11.50","% Linea gratis":0},{"Mes":"202507","ID PDV":"55632","Fibras brutas":0,"Mov activos":"1","Fibra activa":0,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":null,"% Linea gratis":null},{"Mes":"202508","ID PDV":"57317","Fibras brutas":1,"Mov activos":"4","Fibra activa":2,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"12.00","% Linea gratis":0.5},{"Mes":"202412","ID PDV":"55632","Fibras brutas":0,"Mov activos":"0","Fibra activa":0,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":null,"% Linea gratis":null},{"Mes":"202505","ID PDV":"55632","Fibras brutas":0,"Mov activos":"0","Fibra activa":0,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":null,"% Linea gratis":null},{"Mes":"202508","ID PDV":"55632","Fibras brutas":0,"Mov activos":"0","Fibra activa":0,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":null,"% Linea gratis":null},{"Mes":"202404","ID PDV":"55632","Fibras brutas":1,"Mov activos":null,"Fibra activa":null,"Mov en vuelo":0,"Prepago activa":null,"Días instalación":"40.00","% Linea gratis":null},{"Mes":"202407","ID PDV":"57317","Fibras brutas":3,"Mov activos":"5","Fibra activa":3,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"7.00","% Linea gratis":0.2},{"Mes":"202509","ID PDV":"57317","Fibras brutas":1,"Mov activos":"2","Fibra activa":0,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":null,"% Linea gratis":0},{"Mes":"202509","ID PDV":"55632","Fibras brutas":0,"Mov activos":"0","Fibra activa":0,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":null,"% Linea gratis":null},{"Mes":"202412","ID PDV":"57317","Fibras brutas":3,"Mov activos":"16","Fibra activa":4,"Mov en vuelo":0,"Prepago activa":0,"Días instalación":"14.00","% Linea gratis":0.23}];
+        
+        // --- INICIO DE LA LÓGICA ---
+        
+        // Función para calcular y mostrar los totales (KPIs)
+        function calculateAndDisplayKPIs(data, month) {
+            // Función auxiliar para convertir valores a números de forma segura
+            const safeNum = (val) => {
+                const num = parseFloat(String(val).replace(',', '.'));
+                return isFinite(num) ? num : 0;
+            };
 
-        // --- INICIO DE LA LÓGICA DEL GRÁFICO ---
+            // Formatea el nombre del mes para el título
+            const year = month.substring(0, 4);
+            const monthIndex = parseInt(month.substring(4, 6), 10) - 1;
+            const date = new Date(year, monthIndex);
+            const monthName = date.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+            document.getElementById('kpi-month-title').textContent = `Totales para ${monthName.charAt(0).toUpperCase() + monthName.slice(1)}`;
 
-        // 4. NUEVO: Función para determinar el tramo de objetivo según las ventas.
+            // Cálculos
+            const totalFibraBruta = data.reduce((sum, item) => sum + safeNum(item["Fibras brutas"]), 0);
+            const totalMovActivo = data.reduce((sum, item) => sum + safeNum(item["Mov activos"]), 0);
+            const totalMovVuelo = data.reduce((sum, item) => sum + safeNum(item["Mov en vuelo"]), 0);
+
+            const lineaGratisData = data.filter(item => item["% Linea gratis"] != null);
+            const avgLineaGratis = lineaGratisData.reduce((sum, item) => sum + safeNum(item["% Linea gratis"]), 0) / (lineaGratisData.length || 1);
+            
+            const diasInstalData = data.filter(item => item["Días instalación"] != null);
+            const avgDiasInstal = diasInstalData.reduce((sum, item) => sum + safeNum(item["Días instalación"]), 0) / (diasInstalData.length || 1);
+
+            // Mostrar resultados
+            document.getElementById('total-fibra-bruta').textContent = totalFibraBruta;
+            document.getElementById('total-mov-activo').textContent = totalMovActivo;
+            document.getElementById('total-mov-vuelo').textContent = totalMovVuelo;
+            document.getElementById('avg-linea-gratis').textContent = `${(avgLineaGratis * 100).toFixed(1)}%`;
+            document.getElementById('avg-dias-instal').textContent = avgDiasInstal.toFixed(1);
+        }
+        
+        // Lógica del gráfico (existente)
         function getTier(sales) {
             if (sales >= 36) return '💎 DIAMANTE';
             if (sales >= 20) return '✨ PLATINO';
@@ -57,105 +196,98 @@
             return 'Sin Tramo';
         }
         
-        // 5. Obtenemos lista de meses y la ordenamos en descendente.
         const labels = [...new Set(salesData.map(item => item.Mes))].sort().reverse();
-
-        // Obtenemos lista única de PDVs.
         const pdvs = [...new Set(salesData.map(item => item["ID PDV"]))];
+        const colors = ['#007bff', '#28a745', '#dc3545', '#ffc107', '#17a2b8'];
 
-        // 6. NUEVO: Paleta de colores actualizada (amarillo y naranja).
-        const colors = ['#FFC107', '#FFA000', '#FF6F00', '#F57C00', '#E65100'];
-
-        // Creamos una línea por cada PDV.
         const datasets = pdvs.map((pdv, index) => {
             const dataForPdv = labels.map(label => {
                 const monthData = salesData.find(d => d.Mes === label && d["ID PDV"] === pdv);
                 return monthData ? monthData["Fibras brutas"] : null;
             });
-
             return {
-                label: `PDV ${pdv}`,
-                data: dataForPdv,
-                fill: false,
-                borderColor: colors[index % colors.length],
-                tension: 0.2,
-                borderWidth: 2.5,
-                pointBackgroundColor: colors[index % colors.length],
-                pointRadius: 4,
-                pointHoverRadius: 7
+                label: `PDV ${pdv}`, data: dataForPdv, borderColor: colors[index % colors.length], tension: 0.1
             };
         });
 
-        // 7. Configuramos y creamos el gráfico.
         const ctx = document.getElementById('salesChart').getContext('2d');
         const salesChart = new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: labels,
-                datasets: datasets
-            },
+            type: 'line', data: { labels, datasets },
             options: {
-                responsive: true,
-                maintainAspectRatio: false,
+                responsive: true, maintainAspectRatio: false,
                 plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            color: '#CBD5E0', // Color del texto de la leyenda
-                            padding: 20,
-                        }
-                    },
-                    title: {
-                        display: false // Título principal desactivado para un look más limpio
-                    },
-                    // 8. NUEVO: Tooltip personalizado para mostrar el objetivo.
+                    legend: { position: 'bottom' },
                     tooltip: {
-                        mode: 'index',
-                        intersect: false,
-                        backgroundColor: '#1A202C',
-                        titleColor: '#FFFFFF',
-                        bodyColor: '#CBD5E0',
-                        footerColor: '#FFC107', // Color amarillo para el objetivo
-                        footerAlign: 'center',
-                        footerFont: {
-                            weight: 'bold'
-                        },
-                        padding: 12,
+                        mode: 'index', intersect: false,
                         callbacks: {
-                            footer: function(tooltipItems) {
-                                // Tomamos el primer item del tooltip (todos son del mismo punto)
+                            footer: (tooltipItems) => {
                                 const item = tooltipItems[0];
                                 const sales = item.parsed.y;
-                                if (sales !== null) {
-                                    const tier = getTier(sales);
-                                    return `OBJETIVO: ${tier}`;
-                                }
-                                return '';
+                                return sales !== null ? `OBJETIVO: ${getTier(sales)}` : '';
                             }
                         }
                     }
                 },
-                scales: {
-                    y: {
-                        beginAtZero: true,
-                        grid: {
-                            color: '#4A5568' // Color de la cuadrícula
-                        },
-                        ticks: {
-                            color: '#A0AEC0' // Color de los números del eje Y
-                        }
-                    },
-                    x: {
-                        grid: {
-                            display: false // Ocultamos la cuadrícula vertical
-                        },
-                        ticks: {
-                            color: '#A0AEC0' // Color de los meses del eje X
-                        }
-                    }
-                }
+                scales: { y: { beginAtZero: true } }
             }
         });
+
+        // Lógica para la tabla de datos
+        let currentSortColumn = 'Mes';
+        let isSortAscending = false;
+        let tableData = [...salesData];
+
+        const tableBody = document.querySelector('#dataTable tbody');
+        const filterInput = document.getElementById('filterInput');
+        
+        function renderTable() {
+            tableBody.innerHTML = '';
+            const filteredData = tableData.filter(item => 
+                Object.values(item).some(val => 
+                    String(val).toLowerCase().includes(filterInput.value.toLowerCase())
+                )
+            );
+            filteredData.forEach(item => {
+                const row = document.createElement('tr');
+                row.innerHTML = `<td>${item.Mes}</td><td>${item["ID PDV"]}</td><td>${item["Fibras brutas"]}</td><td>${item["Mov activos"] || 0}</td>`;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function sortTable(column) {
+            if (column === currentSortColumn) { isSortAscending = !isSortAscending; } 
+            else { currentSortColumn = column; isSortAscending = true; }
+            tableData.sort((a, b) => {
+                let valA = a[column], valB = b[column];
+                if (!isNaN(valA) && !isNaN(valB)) { valA = Number(valA); valB = Number(valB); } 
+                else { valA = String(valA).toLowerCase(); valB = String(valB).toLowerCase(); }
+                if (valA < valB) return isSortAscending ? -1 : 1;
+                if (valA > valB) return isSortAscending ? 1 : -1;
+                return 0;
+            });
+            renderTable();
+        }
+
+        document.querySelectorAll('#dataTable th').forEach(header => {
+            header.addEventListener('click', () => sortTable(header.dataset.column));
+        });
+        filterInput.addEventListener('keyup', renderTable);
+        
+        // --- CARGA INICIAL DE DATOS ---
+        
+        // 1. Encontrar el mes más reciente
+        const allMonths = salesData.map(item => item.Mes);
+        const mostRecentMonth = Math.max(...allMonths.map(Number)).toString();
+
+        // 2. Filtrar los datos solo para ese mes
+        const recentMonthData = salesData.filter(item => item.Mes === mostRecentMonth);
+
+        // 3. Calcular los KPIs solo con los datos del mes reciente
+        calculateAndDisplayKPIs(recentMonthData, mostRecentMonth);
+        
+        // 4. Renderizar la tabla con todos los datos
+        renderTable();
+
     </script>
 </body>
 </html>
