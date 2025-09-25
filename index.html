@@ -1,42 +1,7 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <title>Dashboard PDV</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #f8f9fa;
-      padding: 20px;
-      text-align: center;
-    }
-    h2 {
-      margin-bottom: 20px;
-    }
-    .card {
-      display: inline-block;
-      background: white;
-      padding: 20px;
-      margin: 10px;
-      border-radius: 10px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      min-width: 150px;
-    }
-    .value {
-      font-size: 24px;
-      font-weight: bold;
-    }
-  </style>
-</head>
-<body>
-  <h2 id="title">Esperando datos del PDV...</h2>
-  <div class="card"><div>Fibras Brutas</div><div id="fibra" class="value">-</div></div>
-  <div class="card"><div>Mov Activos</div><div id="movact" class="value">-</div></div>
-  <div class="card"><div>Mov en Vuelo</div><div id="movvuelo" class="value">-</div></div>
-  <div class="card"><div>% Línea Gratis</div><div id="gratis" class="value">-</div></div>
-  <div class="card"><div>Días Instalación</div><div id="dias" class="value">-</div></div>
+<script>
+  // Esperamos a que el documento HTML esté completamente cargado y analizado
+  document.addEventListener('DOMContentLoaded', function() {
 
-  <script>
     function getCurrentMonthId() {
       const now = new Date();
       const year = now.getFullYear();
@@ -47,26 +12,47 @@
     function fillDashboard(data) {
       const currentMonth = getCurrentMonthId();
       const record = data.find(row => row.Mes === currentMonth);
+      const titleElement = document.getElementById("title");
+
       if (!record) {
-        document.getElementById("title").textContent = "Sin datos para este mes";
+        titleElement.textContent = "Sin datos para este mes";
         return;
       }
-      document.getElementById("fibra").textContent = record["Fibras brutas"] ?? '-';
-      document.getElementById("movact").textContent = record["Mov activos"] ?? '-';
-      document.getElementById("movvuelo").textContent = record["Mov en vuelo"] ?? '-';
-      document.getElementById("gratis").textContent = record["% Linea gratis"] ?? '-';
-      document.getElementById("dias").textContent = record["Días instalación"] ?? '-';
-      document.getElementById("title").textContent = `Totales para ${currentMonth}`;
+
+      // Usar un objeto de mapeo hace el código más limpio y fácil de mantener
+      const elementMapping = {
+        "fibra": record["Fibras brutas"],
+        "movact": record["Mov activos"],
+        "movvuelo": record["Mov en vuelo"],
+        "gratis": record["% Linea gratis"],
+        "dias": record["Días instalación"]
+      };
+
+      // Recorremos el objeto para rellenar los datos
+      for (const id in elementMapping) {
+        const element = document.getElementById(id);
+        if (element) {
+          // El operador '??' asigna '-' si el valor es null o undefined
+          element.textContent = elementMapping[id] ?? '-';
+        }
+      }
+
+      titleElement.textContent = `Totales para ${currentMonth}`;
     }
 
     async function initializeDashboard(pdvId) {
       try {
         const url = `https://n8n.vozipyme.es/webhook/dashboard_chatwoot_pdv?pdv_id=${pdvId}`;
         const response = await fetch(url);
+        // Comprobamos si la petición falló (ej. error 404 o 500)
+        if (!response.ok) {
+            throw new Error(`Error HTTP! estado: ${response.status}`);
+        }
         const data = await response.json();
         fillDashboard(data);
       } catch (error) {
         console.error("Error cargando datos:", error);
+        document.getElementById("title").textContent = "Error al cargar datos";
       }
     }
 
@@ -79,15 +65,19 @@
       }
     }
 
+    // --- Lógica principal de ejecución ---
     if (window.chatwootWebChannel) {
       window.chatwootWebChannel.on("app_context", handleAppContext);
       window.chatwootWebChannel.getAppContext();
     } else {
-      // fallback para pruebas locales con ?pdv_id=PDV48
+      // Alternativa para pruebas locales usando un parámetro en la URL (ej: ?pdv_id=PDV48)
       const urlParams = new URLSearchParams(window.location.search);
       const pdvId = urlParams.get("pdv_id");
-      if (pdvId) initializeDashboard(pdvId);
+      if (pdvId) {
+        initializeDashboard(pdvId);
+      } else {
+         document.getElementById("title").textContent = "Esperando contexto...";
+      }
     }
-  </script>
-</body>
-</html>
+  });
+</script>
