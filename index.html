@@ -1,83 +1,159 @@
-<script>
-  // Esperamos a que el documento HTML esté completamente cargado y analizado
-  document.addEventListener('DOMContentLoaded', function() {
-
-    function getCurrentMonthId() {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, '0');
-      return `${year}${month}`;
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard PDV</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f8f9fa;
+      padding: 20px;
+      text-align: center;
+      color: #333;
     }
+    h2 {
+      margin-bottom: 20px;
+      font-size: 18px;
+    }
+    .card-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+    }
+    .card {
+      background: white;
+      padding: 15px 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      min-width: 150px;
+    }
+    .card-title {
+        font-size: 14px;
+        color: #6c757d;
+    }
+    .value {
+      font-size: 24px;
+      font-weight: bold;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
 
-    function fillDashboard(data) {
-      const currentMonth = getCurrentMonthId();
-      const record = data.find(row => row.Mes === currentMonth);
-      const titleElement = document.getElementById("title");
+  <h2 id="title">Cargando datos del PDV...</h2>
+  
+  <div class="card-container">
+      <div class="card">
+          <div class="card-title">Fibras Brutas</div>
+          <div id="fibra" class="value">-</div>
+      </div>
+      <div class="card">
+          <div class="card-title">Mov Activos</div>
+          <div id="movact" class="value">-</div>
+      </div>
+      <div class="card">
+          <div class="card-title">Mov en Vuelo</div>
+          <div id="movvuelo" class="value">-</div>
+      </div>
+      <div class="card">
+          <div class="card-title">% Línea Gratis</div>
+          <div id="gratis" class="value">-</div>
+      </div>
+      <div class="card">
+          <div class="card-title">Días Instalación</div>
+          <div id="dias" class="value">-</div>
+      </div>
+  </div>
 
-      if (!record) {
-        titleElement.textContent = "Sin datos para este mes";
-        return;
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+      // --- FUNCIONES DEL DASHBOARD ---
+
+      function getCurrentMonthId() {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        return `${year}${month}`;
       }
 
-      // Usar un objeto de mapeo hace el código más limpio y fácil de mantener
-      const elementMapping = {
-        "fibra": record["Fibras brutas"],
-        "movact": record["Mov activos"],
-        "movvuelo": record["Mov en vuelo"],
-        "gratis": record["% Linea gratis"],
-        "dias": record["Días instalación"]
-      };
+      function updateUI(data) {
+        const currentMonth = getCurrentMonthId();
+        const record = data.find(row => row.Mes === currentMonth);
+        const titleElement = document.getElementById("title");
 
-      // Recorremos el objeto para rellenar los datos
-      for (const id in elementMapping) {
-        const element = document.getElementById(id);
-        if (element) {
-          // El operador '??' asigna '-' si el valor es null o undefined
-          element.textContent = elementMapping[id] ?? '-';
+        if (!record) {
+          titleElement.textContent = "Sin datos para el mes actual";
+          return;
+        }
+
+        const elementMapping = {
+          "fibra": record["Fibras brutas"],
+          "movact": record["Mov activos"],
+          "movvuelo": record["Mov en vuelo"],
+          "gratis": record["% Linea gratis"],
+          "dias": record["Días instalación"]
+        };
+
+        for (const id in elementMapping) {
+          const element = document.getElementById(id);
+          if (element) {
+            element.textContent = elementMapping[id] ?? '-';
+          }
+        }
+        titleElement.textContent = `Totales para ${currentMonth}`;
+      }
+
+      async function fetchPdvData(pdvId) {
+        const titleElement = document.getElementById("title");
+        try {
+          const url = `https://n8n.vozipyme.es/webhook/dashboard_chatwoot_pdv?pdv_id=${pdvId}`;
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            // Si la respuesta es un error (como 404), lo mostramos
+            titleElement.textContent = `Error al obtener datos (código: ${response.status})`;
+            throw new Error(`Error HTTP: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          updateUI(data);
+
+        } catch (error) {
+          console.error("Error cargando datos del PDV:", error);
+          if (titleElement.textContent.startsWith("Cargando")) {
+             titleElement.textContent = "Fallo al cargar los datos";
+          }
         }
       }
 
-      titleElement.textContent = `Totales para ${currentMonth}`;
-    }
+      // --- COMUNICACIÓN CON CHATWOOT ---
 
-    async function initializeDashboard(pdvId) {
-      try {
-        const url = `https://n8n.vozipyme.es/webhook/dashboard_chatwoot_pdv?pdv_id=${pdvId}`;
-        const response = await fetch(url);
-        // Comprobamos si la petición falló (ej. error 404 o 500)
-        if (!response.ok) {
-            throw new Error(`Error HTTP! estado: ${response.status}`);
+      // 1. Función que se ejecuta cuando Chatwoot envía los datos del contacto
+      function handleContextUpdate(event) {
+        // Verificamos que el mensaje sea de Chatwoot y contenga el contexto
+        if (event.source === window.parent && event.data.event === 'chatwoot-dashboard-app:context-set') {
+          const context = event.data.data;
+          const pdvId = context?.contact?.custom_attributes?.ID_PDV;
+          const titleElement = document.getElementById("title");
+
+          if (pdvId) {
+            titleElement.textContent = `Buscando datos para PDV: ${pdvId}...`;
+            fetchPdvData(pdvId);
+          } else {
+            titleElement.textContent = "El contacto no tiene un ID de PDV asignado";
+          }
         }
-        const data = await response.json();
-        fillDashboard(data);
-      } catch (error) {
-        console.error("Error cargando datos:", error);
-        document.getElementById("title").textContent = "Error al cargar datos";
       }
-    }
 
-    function handleAppContext(ctx) {
-      const pdvId = ctx?.contact?.custom_attributes?.ID_PDV;
-      if (pdvId) {
-        initializeDashboard(pdvId);
-      } else {
-        document.getElementById("title").textContent = "PDV no definido";
-      }
-    }
+      // 2. Registramos el "escuchador" para los mensajes de Chatwoot
+      window.addEventListener('message', handleContextUpdate);
 
-    // --- Lógica principal de ejecución ---
-    if (window.chatwootWebChannel) {
-      window.chatwootWebChannel.on("app_context", handleAppContext);
-      window.chatwootWebChannel.getAppContext();
-    } else {
-      // Alternativa para pruebas locales usando un parámetro en la URL (ej: ?pdv_id=PDV48)
-      const urlParams = new URLSearchParams(window.location.search);
-      const pdvId = urlParams.get("pdv_id");
-      if (pdvId) {
-        initializeDashboard(pdvId);
-      } else {
-         document.getElementById("title").textContent = "Esperando contexto...";
-      }
-    }
-  });
-</script>
+      // 3. Enviamos el mensaje a Chatwoot para decirle que estamos listos
+      window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
+      
+    });
+  </script>
+</body>
+</html>
