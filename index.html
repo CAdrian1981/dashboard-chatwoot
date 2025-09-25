@@ -112,7 +112,6 @@
           const response = await fetch(url);
           
           if (!response.ok) {
-            // Si la respuesta es un error (como 404), lo mostramos
             titleElement.textContent = `Error al obtener datos (código: ${response.status})`;
             throw new Error(`Error HTTP: ${response.status}`);
           }
@@ -130,11 +129,10 @@
 
       // --- COMUNICACIÓN CON CHATWOOT ---
 
-      // 1. Función que se ejecuta cuando Chatwoot envía los datos del contacto
       function handleContextUpdate(event) {
-        // Verificamos que el mensaje sea de Chatwoot y contenga el contexto
         if (event.source === window.parent && event.data.event === 'chatwoot-dashboard-app:context-set') {
           const context = event.data.data;
+          // ✅ ¡AQUÍ ESTÁ EL CAMBIO! Usamos la llave 'id_pdv' en minúsculas.
           const pdvId = context?.contact?.custom_attributes?.id_pdv;
           const titleElement = document.getElementById("title");
 
@@ -147,14 +145,10 @@
         }
       }
 
-      // 2. Registramos el "escuchador" para los mensajes de Chatwoot
       window.addEventListener('message', handleContextUpdate);
-
-      // 3. Enviamos el mensaje a Chatwoot para decirle que estamos listos
       window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
       
     });
   </script>
 </body>
 </html>
-
