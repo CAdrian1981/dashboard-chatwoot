@@ -1,77 +1,65 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
   <title>Dashboard PDV</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f8f9fa;
-      margin: 0;
-      padding: 1rem;
-    }
-    h2 {
-      text-align: center;
-      margin-bottom: 2rem;
-    }
-    .grid {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 1rem;
-    }
-    .card {
-      background: white;
-      padding: 1rem 2rem;
-      border-radius: 1rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      min-width: 160px;
-      text-align: center;
-    }
-    .value {
-      font-size: 2rem;
-      font-weight: bold;
-    }
+    body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f8f9fa; }
+    h2 { font-size: 1.5rem; margin-bottom: 2rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; max-width: 900px; margin: auto; }
+    .card { background: white; padding: 1rem; border-radius: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-weight: bold; }
   </style>
 </head>
 <body>
-  <h2 id="title">Esperando datos del PDV...</h2>
+  <h2>Esperando datos del PDV...</h2>
   <div class="grid">
-    <div class="card"><div>Fibras Brutas</div><div class="value" id="fibras"></div></div>
-    <div class="card"><div>Mov Activos</div><div class="value" id="activos"></div></div>
-    <div class="card"><div>Mov en Vuelo</div><div class="value" id="vuelo"></div></div>
-    <div class="card"><div>% Línea Gratis</div><div class="value" id="gratis"></div></div>
-    <div class="card"><div>Días Instalación</div><div class="value" id="dias"></div></div>
+    <div class="card">Fibras Brutas<br><span id="fibras"></span></div>
+    <div class="card">Mov Activos<br><span id="mov_activos"></span></div>
+    <div class="card">Mov en Vuelo<br><span id="mov_vuelo"></span></div>
+    <div class="card">% Línea Gratis<br><span id="linea_gratis"></span></div>
+    <div class="card">Días Instalación<br><span id="dias_instalacion"></span></div>
   </div>
 
   <script>
-    window.addEventListener("message", async (event) => {
-      const data = event.data;
-      if (!data || !data.contact || !data.contact.custom_attributes) return;
-
-      const pdvId = data.contact.custom_attributes.ID_PDV;
-      if (!pdvId) return;
-
-      document.getElementById("title").textContent = `Totales para PDV ${pdvId}`;
+    async function initializeDashboard() {
       try {
-        const res = await fetch(`https://n8n.vozipyme.es/webhook/dashboard_chatwoot_pdv?pdv_id=${pdvId}`);
-        const items = await res.json();
-        const hoy = new Date();
-        const mesActual = hoy.getFullYear().toString() + ("0" + (hoy.getMonth() + 1)).slice(-2);
-        const mes = items.find((e) => e.Mes === mesActual);
+        const context = await window.chatwootWebChannel.getAppContext();
+        const pdvId = context?.contact?.custom_attributes?.ID_PDV;
 
-        if (mes) {
-          document.getElementById("fibras").textContent = mes["Fibras brutas"] ?? "-";
-          document.getElementById("activos").textContent = mes["Mov activos"] ?? "-";
-          document.getElementById("vuelo").textContent = mes["Mov en vuelo"] ?? "-";
-          document.getElementById("gratis").textContent = mes["% Linea gratis"]?.toFixed(2) ?? "-";
-          document.getElementById("dias").textContent = mes["Días instalación"] ?? "-";
+        if (!pdvId) {
+          console.error("No se encontró el ID_PDV en los atributos del contacto.");
+          return;
         }
+
+        const res = await fetch(`https://n8n.vozipyme.es/webhook/dashboard_chatwoot_pdv?pdv_id=${pdvId}`);
+        const data = await res.json();
+
+        const now = new Date();
+        const mesActual = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const registro = data.find(item => item.Mes === mesActual);
+
+        if (!registro) {
+          console.warn("No hay datos para el mes actual.");
+          return;
+        }
+
+        document.getElementById("fibras").textContent = registro["Fibras brutas"] ?? '-';
+        document.getElementById("mov_activos").textContent = registro["Mov activos"] ?? '-';
+        document.getElementById("mov_vuelo").textContent = registro["Mov en vuelo"] ?? '-';
+        document.getElementById("linea_gratis").textContent = registro["% Linea gratis"] ?? '-';
+        document.getElementById("dias_instalacion").textContent = registro["Días instalación"] ?? '-';
+
+        document.querySelector("h2").textContent = `Totales para ${new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(now)}`;
       } catch (e) {
-        console.error("Error cargando datos", e);
+        console.error("Error cargando datos:", e);
       }
-    }, false);
+    }
+
+    if (window.chatwootWebChannel) {
+      initializeDashboard();
+    } else {
+      window.addEventListener("chatwoot:ready", initializeDashboard);
+    }
   </script>
 </body>
 </html>
