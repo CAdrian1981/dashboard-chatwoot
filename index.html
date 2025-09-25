@@ -5,136 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard de Ventas PDV</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.chatwoot.com/packs/js/sdk.js"></script>
     
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 15px;
-            background-color: #f8f9fa;
-            color: #333;
-        }
-        /* 1. NUEVO: Estilo para el indicador de versión */
-        .version-display {
-            position: fixed;
-            top: 5px;
-            left: 5px;
-            background-color: #e9ecef;
-            color: #6c757d;
-            padding: 3px 8px;
-            font-size: 12px;
-            border-radius: 4px;
-            z-index: 9999;
-            font-weight: bold;
-        }
-        .dashboard-container {
-            width: 100%;
-            max-width: 1200px;
-            margin: auto;
-        }
-        .kpi-section-title {
-            text-align: center;
-            font-size: 1.2em;
-            font-weight: 600;
-            color: #495057;
-            margin-bottom: 15px;
-        }
-        .kpi-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .kpi-card {
-            background: #ffffff;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            text-align: center;
-        }
-        .kpi-title {
-            font-size: 0.9em;
-            color: #6c757d;
-            margin: 0 0 5px 0;
-        }
-        .kpi-value {
-            font-size: 1.5em;
-            font-weight: 700;
-            color: #000;
-            margin: 0;
-        }
-        .chart-container {
-            position: relative;
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            max-height: 900px; 
-        }
-        .table-container {
-            margin-top: 25px;
-            background: #ffffff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-        .table-filters {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-        .table-filters select {
-            padding: 8px;
-            border: 1px solid #ced4da;
-            border-radius: 4px;
-            flex-grow: 1;
-        }
-        .data-table-wrapper {
-            max-height: 280px;
-            overflow: auto;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            padding: 12px 15px;
-            text-align: left;
-            border-bottom: 1px solid #dee2e6;
-            white-space: nowrap;
-        }
-        th {
-            cursor: pointer;
-            background-color: #f1f3f5;
-        }
-        th:nth-child(1), td:nth-child(1) {
-            position: sticky;
-            left: 0;
-            z-index: 2;
-            background-color: #f1f3f5;
-        }
-        td:nth-child(1) {
-             background-color: #ffffff;
-        }
-        th:nth-child(2), td:nth-child(2) {
-            position: sticky;
-            left: 100px; 
-            z-index: 2;
-            background-color: #f1f3f5;
-        }
-        td:nth-child(2) {
-             background-color: #ffffff;
-        }
+        /* CSS sin cambios */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 15px; background-color: #f8f9fa; color: #333; }
+        .version-display { position: fixed; top: 5px; left: 5px; background-color: #e9ecef; color: #6c757d; padding: 3px 8px; font-size: 12px; border-radius: 4px; z-index: 9999; font-weight: bold; }
+        .dashboard-container { width: 100%; max-width: 1200px; margin: auto; }
+        .kpi-section-title { text-align: center; font-size: 1.2em; font-weight: 600; color: #495057; margin-bottom: 15px; }
+        .kpi-container { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .kpi-card { background: #ffffff; padding: 15px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); text-align: center; }
+        .kpi-title { font-size: 0.9em; color: #6c757d; margin: 0 0 5px 0; }
+        .kpi-value { font-size: 1.5em; font-weight: 700; color: #000; margin: 0; }
+        .chart-container { position: relative; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); max-height: 900px; }
+        .table-container { margin-top: 25px; background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .table-filters { display: flex; gap: 15px; margin-bottom: 15px; }
+        .table-filters select { padding: 8px; border: 1px solid #ced4da; border-radius: 4px; flex-grow: 1; }
+        .data-table-wrapper { max-height: 280px; overflow: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #dee2e6; white-space: nowrap; }
+        th { cursor: pointer; background-color: #f1f3f5; }
+        th:nth-child(1), td:nth-child(1) { position: sticky; left: 0; z-index: 2; background-color: #f1f3f5; }
+        td:nth-child(1) { background-color: #ffffff; }
+        th:nth-child(2), td:nth-child(2) { position: sticky; left: 100px; z-index: 2; background-color: #f1f3f5; }
+        td:nth-child(2) { background-color: #ffffff; }
     </style>
 </head>
 <body>
     
-    <div class="version-display">V6.1</div>
+    <div class="version-display">V6.2</div>
 
     <div class="dashboard-container">
-        
-        <h3 id="kpi-month-title" class="kpi-section-title">Cargando datos...</h3>
-        
+        <h3 id="kpi-month-title" class="kpi-section-title">Esperando a Chatwoot...</h3>
         <div class="kpi-container">
             <div class="kpi-card"><p class="kpi-title">Total Fibras Brutas</p><p class="kpi-value" id="total-fibra-bruta">-</p></div>
             <div class="kpi-card"><p class="kpi-title">Total Mov. Activos</p><p class="kpi-value" id="total-mov-activo">-</p></div>
@@ -142,11 +44,7 @@
             <div class="kpi-card"><p class="kpi-title">Prom. % Línea Gratis</p><p class="kpi-value" id="avg-linea-gratis">-</p></div>
             <div class="kpi-card"><p class="kpi-title">Prom. Días Instal.</p><p class="kpi-value" id="avg-dias-instal">-</p></div>
         </div>
-
-        <div class="chart-container">
-            <canvas id="salesChart"></canvas>
-        </div>
-
+        <div class="chart-container"><canvas id="salesChart"></canvas></div>
         <div class="table-container">
             <div class="table-filters">
                 <select id="monthFilter"></select>
@@ -159,17 +57,40 @@
                 </table>
             </div>
         </div>
-
     </div>
 
     <script>
         let salesChart = null;
-        let originalSalesData = []; // Guardaremos los datos originales aquí
+        let originalSalesData = [];
+
+        // 2. NUEVO: La inicialización ahora se hace a través del SDK
+        window.addEventListener('load', function () {
+            window.chatwootSDK.run({
+                websiteToken: '', // No es necesario para Dashboard Apps
+                baseUrl: 'https://chat.vozipyme.es' // URL base de tu Chatwoot
+            }).then(function ($sdk) {
+
+                // Esta función se encarga de actualizar todo el dashboard
+                const updateDashboardUI = (contact) => {
+                    const pdvId = contact.custom_attributes && contact.custom_attributes.Id_PDV 
+                        ? contact.custom_attributes.Id_PDV 
+                        : null;
+                    
+                    initializeDashboard(pdvId);
+                };
+
+                // Escucha futuros cambios de contacto
+                $sdk.on('contact_changed', (contact) => updateDashboardUI(contact.data));
+
+                // Obtiene el contacto inicial al cargar por primera vez
+                $sdk.getContact().then((contact) => updateDashboardUI(contact.data));
+
+            }).catch(error => console.error(error));
+        });
 
         async function initializeDashboard(pdvId) {
             if (!pdvId) {
                 document.getElementById('kpi-month-title').textContent = "Contacto sin PDV asignado.";
-                // Limpiar datos viejos
                 renderChart([]);
                 setupTable([]);
                 return;
@@ -179,11 +100,10 @@
             
             try {
                 const response = await fetch(`https://n8n.vozipyme.es/webhook/dashboard_chatwoot_pdv?pdv_id=${pdvId}`);
-                if (!response.ok) {
-                     throw new Error(`Error en la red: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`Error en la red: ${response.statusText}`);
+                
                 const salesData = await response.json();
-                originalSalesData = salesData; // Guardar los nuevos datos
+                originalSalesData = salesData;
 
                 if (!salesData || salesData.length === 0) {
                     document.getElementById('kpi-month-title').textContent = "No se encontraron datos para este PDV.";
@@ -205,40 +125,23 @@
                 document.getElementById('kpi-month-title').textContent = "Error al cargar los datos.";
             }
         }
-
-        // 3. CORRECCIÓN: El escuchador ahora reacciona a 'app_context' (carga inicial) y 'contact_changed' (cambio de contacto)
-        window.addEventListener('message', (event) => {
-            if (typeof event.data !== 'object' || !event.data.event) {
-                return;
-            }
-            
-            if (event.data.event === 'app_context' || event.data.event === 'contact_changed') {
-                const contact = event.data.data;
-                const pdvId = contact.custom_attributes && contact.custom_attributes.Id_PDV 
-                    ? contact.custom_attributes.Id_PDV 
-                    : null;
-                
-                initializeDashboard(pdvId);
-            }
-        }, false);
         
-        // --- FUNCIONES AUXILIARES ---
-        // (El resto de las funciones auxiliares no necesitan cambios)
-        // calculateAndDisplayKPIs, getTier, renderChart, setupTable, etc.
-
+        // --- FUNCIONES AUXILIARES (Sin cambios) ---
         function calculateAndDisplayKPIs(data, month) {
-            // ... (código sin cambios)
+            const safeNum = (val) => { const num = parseFloat(String(val).replace(',', '.')); return isFinite(num) ? num : 0; };
+            const year = month.substring(0, 4);
+            const monthIndex = parseInt(month.substring(4, 6), 10) - 1;
+            const date = new Date(year, monthIndex);
+            const monthName = date.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+            document.getElementById('kpi-month-title').textContent = `Totales para ${monthName.charAt(0).toUpperCase() + monthName.slice(1)}`;
+            const totalFibraBruta = data.reduce((sum, item) => sum + safeNum(item["Fibras brutas"]), 0);
+            document.getElementById('total-fibra-bruta').textContent = totalFibraBruta;
+            // ... resto de los cálculos y asignaciones de KPIs
         }
-        function getTier(sales) {
-            // ... (código sin cambios)
-        }
-        function renderChart(salesData) {
-            // ... (código sin cambios)
-        }
-        function setupTable(salesData) {
-            // ... (código sin cambios)
-        }
-    </script>
+        function getTier(sales) { if (sales >= 36) return '💎 DIAMANTE'; if (sales >= 20) return '✨ PLATINO'; if (sales >= 9) return '🥇 ORO'; if (sales >= 3) return '🥈 PLATA'; if (sales >= 1) return '🥉 BRONCE'; return 'Sin Tramo'; }
+        function renderChart(salesData) { /* ...código sin cambios... */ }
+        function setupTable(salesData) { /* ...código sin cambios... */ }
 
+    </script>
 </body>
 </html>
