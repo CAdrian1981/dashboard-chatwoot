@@ -135,7 +135,7 @@
         // Verificamos que el mensaje sea de Chatwoot y contenga el contexto
         if (event.source === window.parent && event.data.event === 'chatwoot-dashboard-app:context-set') {
           const context = event.data.data;
-          const pdvId = context?.contact?.custom_attributes?.ID_PDV;
+          const pdvId = context?.contact?.custom_attributes?.id_pdv;
           const titleElement = document.getElementById("title");
 
           if (pdvId) {
@@ -157,3 +157,4 @@
   </script>
 </body>
 </html>
+
