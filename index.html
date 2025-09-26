@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard PDV v2.5</title>
+  <title>Dashboard PDV v2.6</title>
   <!-- Librería para Gráficos -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
@@ -137,7 +137,7 @@
 <body>
 
   <div class="dashboard-container">
-    <div id="dashboard-header" class="dashboard-header">Dashboard PDV v2.5</div>
+    <div id="dashboard-header" class="dashboard-header">Dashboard PDV v2.6</div>
 
     <!-- Sección de Info de Contacto -->
     <div class="contact-info" id="contact-info-container">
@@ -174,14 +174,10 @@
 
 <script>
 window.addEventListener('load', () => {
-    // CORRECCIÓN: El plugin de anotaciones se registra automáticamente al incluir el script.
-    // No es necesario un registro manual, y hacerlo provocaba el error.
-
     let hasProcessed = false;
-    let n8nDataCache = []; // Caché para los datos de n8n
-    let historicalChart = null; // Variable para la instancia del gráfico
+    let n8nDataCache = [];
+    let historicalChart = null;
 
-    // -- INICIO: COMUNICACIÓN CON CHATWOOT --
     function handleWindowMessage(event) {
         if (event.source !== window.parent || hasProcessed) return;
         try {
@@ -198,14 +194,15 @@ window.addEventListener('load', () => {
     }
     window.addEventListener('message', handleWindowMessage);
     window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
-
-    // -- INICIO: LÓGICA DE ACTUALIZACIÓN DE UI --
     
     function updateContactInfo(contact) {
         const container = document.getElementById('contact-info-container');
         const customAttrs = contact.custom_attributes;
+        // CORRECCIÓN: La ruta correcta para company_name está en additional_attributes
+        const additionalAttrs = contact.additional_attributes;
+
         const info = {
-            'Empresa': contact.company_name || '-',
+            'Empresa': additionalAttrs.company_name || '-',
             'Estado PDV': customAttrs.statuspdv || '-',
             'Documentación': customAttrs.documentacion || '-',
             'Cargo': customAttrs.cargo || '-',
@@ -392,4 +389,3 @@ window.addEventListener('load', () => {
 
 </body>
 </html>
-
