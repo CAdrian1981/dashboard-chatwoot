@@ -2,122 +2,92 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard PDV</title>
+  <title>Dashboard PDV v1.2</title>
   <style>
-    body {
-      font-family: sans-serif;
-      background: #f8f9fa;
-      padding: 20px;
-      text-align: center;
-      color: #333;
-    }
-    h2 {
-      margin-bottom: 10px;
-      font-size: 18px;
-    }
-    .card-container {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 15px;
-    }
-    .card {
-      background: white;
-      padding: 15px 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-      min-width: 150px;
-    }
-    .card-title {
-        font-size: 14px;
-        color: #6c757d;
-    }
-    .value {
-      font-size: 24px;
-      font-weight: bold;
-      margin-top: 5px;
-    }
-    /* Estilo para el panel de depuración */
-    #debug-info {
-        font-family: monospace;
-        color: #dc3545; /* Rojo */
-        background-color: #f8d7da;
-        border: 1px solid #f5c6cb;
-        padding: 10px;
-        border-radius: 5px;
-        margin-top: 0;
-        margin-bottom: 20px;
-        text-align: left;
-        word-wrap: break-word;
-    }
+    body { font-family: sans-serif; background: #f8f9fa; padding: 20px; text-align: center; color: #333; }
+    h2 { margin-bottom: 10px; font-size: 18px; }
+    .card-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
+    .card { background: white; padding: 15px 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-width: 150px; }
+    .card-title { font-size: 14px; color: #6c757d; }
+    .value { font-size: 24px; font-weight: bold; margin-top: 5px; }
+    #debug-info { font-family: monospace; color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px; margin-top: 0; margin-bottom: 20px; text-align: left; white-space: pre-wrap; word-wrap: break-word; }
   </style>
 </head>
 <body>
 
-  <h2 id="title">Cargando datos del PDV...</h2>
-  <p id="debug-info">Esperando contexto de Chatwoot...</p>
+  <h2 id="title">Dashboard PDV v1.2 - Cargando...</h2>
+  <p id="debug-info">Esperando cualquier mensaje desde Chatwoot...</p>
   
   <div class="card-container">
-      <div class="card">
-          <div class="card-title">Fibras Brutas</div>
-          <div id="fibra" class="value">-</div>
-      </div>
-      <div class="card">
-          <div class="card-title">Mov Activos</div>
-          <div id="movact" class="value">-</div>
-      </div>
-      <div class="card">
-          <div class="card-title">Mov en Vuelo</div>
-          <div id="movvuelo" class="value">-</div>
-      </div>
-      <div class="card">
-          <div class="card-title">% Línea Gratis</div>
-          <div id="gratis" class="value">-</div>
-      </div>
-      <div class="card">
-          <div class="card-title">Días Instalación</div>
-          <div id="dias" class="value">-</div>
-      </div>
+    <div class="card"><div class="card-title">Fibras Brutas</div><div id="fibra" class="value">-</div></div>
+    <div class="card"><div class="card-title">Mov Activos</div><div id="movact" class="value">-</div></div>
+    <div class="card"><div class="card-title">Mov en Vuelo</div><div id="movvuelo" class="value">-</div></div>
+    <div class="card"><div class="card-title">% Línea Gratis</div><div id="gratis" class="value">-</div></div>
+    <div class="card"><div class="card-title">Días Instalación</div><div id="dias" class="value">-</div></div>
   </div>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      const debugElement = document.getElementById("debug-info");
 
-      // --- FUNCIONES DEL DASHBOARD (sin cambios) ---
-      function getCurrentMonthId() { /* ... */ }
-      function updateUI(data) { /* ... */ }
-      async function fetchPdvData(pdvId) { /* ... */ }
+      // v1.2: Helper para validar JSON, como en la documentación
+      function isJSONValid(string) {
+        try {
+          JSON.parse(string);
+        } catch (e) {
+          return false;
+        }
+        return true;
+      }
 
-      // --- COMUNICACIÓN CON CHATWOOT (CON CAMBIOS PARA DEPURACIÓN) ---
-      function handleContextUpdate(event) {
-        if (event.source === window.parent && event.data.event === 'chatwoot-dashboard-app:context-set') {
-          const context = event.data.data;
+      // v1.2: Nueva función que captura TODOS los mensajes
+      function handleWindowMessage(event) {
+        // Ignoramos mensajes que no vengan de la ventana padre (Chatwoot)
+        if (event.source !== window.parent) {
+          return;
+        }
+
+        // Verificamos si el dato es un JSON válido
+        if (!isJSONValid(event.data)) {
+          // Opcional: podríamos mostrar aquí los mensajes no-JSON si quisiéramos
+          return;
+        }
+
+        const eventData = JSON.parse(event.data);
+        
+        // ¡ÉXITO! Mostramos en el panel de depuración todo el objeto recibido
+        debugElement.style.backgroundColor = '#d4edda'; // Verde éxito
+        debugElement.textContent = JSON.stringify(eventData, null, 2);
+
+        // AHORA, intentamos procesar el evento que nos interesa
+        if (eventData.event === 'chatwoot-dashboard-app:context-set') {
+          processAppContext(eventData.data);
+        }
+      }
+      
+      // v1.2: La lógica de negocio se separa en su propia función
+      function processAppContext(context) {
           const titleElement = document.getElementById("title");
-          // --- Cambios para depuración ---
-          const debugElement = document.getElementById("debug-info");
           const customAttributes = context?.contact?.custom_attributes;
           const pdvId = customAttributes?.id_pdv;
 
           if (pdvId) {
-            debugElement.textContent = `ID de PDV encontrado: "${pdvId}"`;
-            titleElement.textContent = `Buscando datos para PDV: ${pdvId}...`;
+            titleElement.textContent = `Dashboard PDV v1.2 - Buscando datos para PDV: ${pdvId}...`;
             fetchPdvData(pdvId);
           } else {
-            titleElement.textContent = "El contacto no tiene un ID de PDV asignado";
-            // Mostramos todos los atributos que SÍ hemos recibido
-            const receivedAttrs = JSON.stringify(customAttributes, null, 2);
-            debugElement.textContent = `ID de PDV no encontrado. Atributos recibidos: ${receivedAttrs}`;
+            titleElement.textContent = "Dashboard PDV v1.2 - El contacto no tiene un ID de PDV asignado";
           }
-        }
       }
 
-      window.addEventListener('message', handleContextUpdate);
+      window.addEventListener('message', handleWindowMessage);
       window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
       
-      // --- CÓDIGO DE FUNCIONES MINIMIZADO PARA CLARIDAD ---
-      function getCurrentMonthId() { const now = new Date(); const year = now.getFullYear(); const month = String(now.getMonth() + 1).padStart(2, '0'); return `${year}${month}`; }
-      function updateUI(data) { const currentMonth = getCurrentMonthId(); const record = data.find(row => row.Mes === currentMonth); const titleElement = document.getElementById("title"); if (!record) { titleElement.textContent = "Sin datos para el mes actual"; return; } const elementMapping = { "fibra": record["Fibras brutas"], "movact": record["Mov activos"], "movvuelo": record["Mov en vuelo"], "gratis": record["% Linea gratis"], "dias": record["Días instalación"] }; for (const id in elementMapping) { const element = document.getElementById(id); if (element) { element.textContent = elementMapping[id] ?? '-'; } } titleElement.textContent = `Totales para ${currentMonth}`; }
-      async function fetchPdvData(pdvId) { const titleElement = document.getElementById("title"); try { const url = `https://n8n.vozipyme.es/webhook/dashboard_chatwoot_pdv?pdv_id=${pdvId}`; const response = await fetch(url); if (!response.ok) { titleElement.textContent = `Error al obtener datos (código: ${response.status})`; throw new Error(`Error HTTP: ${response.status}`); } const data = await response.json(); updateUI(data); } catch (error) { console.error("Error cargando datos del PDV:", error); if (titleElement.textContent.startsWith("Buscando")) { titleElement.textContent = "Fallo al cargar los datos"; } } }
+      // --- Funciones del Dashboard (sin cambios) ---
+      async function fetchPdvData(pdvId) { /* ... */ }
+      // ... (el resto de funciones auxiliares)
+      function updateUI(data) { const currentMonth = new Date().toISOString().slice(0,7).replace('-',''); const record = data.find(row => row.Mes === currentMonth); const titleElement = document.getElementById("title"); if (!record) { titleElement.textContent = "Dashboard PDV v1.2 - Sin datos para el mes actual"; return; } const elementMapping = { "fibra": record["Fibras brutas"], "movact": record["Mov activos"], "movvuelo": record["Mov en vuelo"], "gratis": record["% Linea gratis"], "dias": record["Días instalación"] }; for (const id in elementMapping) { const element = document.getElementById(id); if (element) { element.textContent = elementMapping[id] ?? '-'; } } titleElement.textContent = `Dashboard PDV v1.2 - Totales para ${currentMonth}`; }
+      async function fetchPdvData(pdvId) { const titleElement = document.getElementById("title"); try { const url = `https://n8n.vozipyme.es/webhook/dashboard_chatwoot_pdv?pdv_id=${pdvId}`; const response = await fetch(url); if (!response.ok) { titleElement.textContent = `Dashboard PDV v1.2 - Error al obtener datos (código: ${response.status})`; throw new Error(`Error HTTP: ${response.status}`); } const data = await response.json(); updateUI(data); } catch (error) { console.error("Error cargando datos del PDV:", error); if (titleElement.textContent.includes("Buscando")) { titleElement.textContent = "Dashboard PDV v1.2 - Fallo al cargar los datos"; } } }
+
     });
   </script>
 </body>
