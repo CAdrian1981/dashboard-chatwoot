@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Visor de Ventas PDV</title>
+  <style>
+    /* Estilos Generales */
+    :root {
+      --primary-color: #007bff;
+      --secondary-color: #6c757d;
+      --background-color: #f8f9fa;
+      --card-bg-color: #ffffff;
+      --text-color: #333;
+      --hover-color: #e9ecef;
+      --status-activo-bg: #d1e7dd;
+      --status-activo-text: #0f5132;
+      --status-baja-bg: #fff3cd;
+      --status-baja-text: #664d03;
+      --status-cancelada-bg: #f8d7da;
+      --status-cancelada-text: #842029;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 20px;
+      font-size: 14px;
+    }
+    .container {
+      background-color: var(--card-bg-color);
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid #dee2e6;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 20px;
+      color: #333;
+    }
+    
+    /* Contenedor de Resumen */
+    .summary-container {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    .summary-card {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    .summary-card-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--secondary-color);
+        margin-bottom: 8px;
+    }
+    .summary-card-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+
+    .filter-container input {
+      width: 100%;
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    .table-wrapper {
+      overflow-x: auto;
+    }
+    #sales-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    #sales-table th, #sales-table td {
+      padding: 12px 15px;
+      text-align: left;
+      border-bottom: 1px solid #dee2e6;
+      white-space: nowrap;
+    }
+    #sales-table th {
+      background-color: #f8f9fa;
+      font-weight: 600;
+      cursor: pointer;
+      user-select: none;
+    }
+    #sales-table th:hover { background-color: #e9ecef; }
+    #sales-table tbody tr:hover { background-color: var(--hover-color); }
+    .status {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 11px;
+      text-align: center;
+    }
+    .status-activo { background-color: var(--status-activo-bg); color: var(--status-activo-text); }
+    .status-baja { background-color: var(--status-baja-bg); color: var(--status-baja-text); }
+    .status-cancelada { background-color: var(--status-cancelada-bg); color: var(--status-cancelada-text); }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h1 id="main-title">Historial de Ventas</h1>
+    </div>
+    <div id="summary-container" class="summary-container">
+        <!-- Las tarjetas de resumen se insertarán aquí -->
+    </div>
+    <div class="filter-container">
+      <input type="text" id="filter-global" placeholder="Buscar por cliente, estado, servicio...">
+    </div>
+    <div class="table-wrapper">
+      <table id="sales-table">
+        <thead><tr id="table-header"></tr></thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+<script>
+window.addEventListener('load', () => {
+    let hasProcessed = false;
+    let salesDataCache = [];
+
+    // --- LÓGICA DE COMUNICACIÓN CON CHATWOOT ---
+    function handleWindowMessage(event) {
+        if (event.source !== window.parent || hasProcessed) return;
+        try {
+            const parsedData = JSON.parse(event.data);
+            const pdvId = parsedData?.data?.contact?.custom_attributes?.id_pdv;
+            
+            if (pdvId) {
+                hasProcessed = true;
+                document.getElementById('main-title').textContent += ` - PDV ${pdvId}`;
+                fetchVentasData(pdvId);
+            }
+        } catch (error) { /* Ignorar mensajes no JSON */ }
+    }
+    window.addEventListener('message', handleWindowMessage);
+    window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
+
+    // --- LÓGICA DE OBTENCIÓN Y RENDERIZADO DE DATOS ---
+    async function fetchVentasData(pdvId) {
+        try {
+            const url = `https://n8n.vozipyme.es/webhook/4abcfbd2-ec57-471b-b580-927938988ee9?id_pdv=${pdvId}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+            const data = await response.json();
+            salesDataCache = data;
+            
+            renderSummary(data);
+            renderTable(data, 'fecha_venta', 'desc');
+        } catch (error) {
+            console.error("Error al cargar datos de ventas desde n8n:", error);
+            document.getElementById('table-body').innerHTML = `<tr><td colspan="100%" style="text-align: center; color: red;">Error al cargar los datos de ventas.</td></tr>`;
+        }
+    }
+
+    function renderSummary(data) {
+        const container = document.getElementById('summary-container');
+        const total = data.length;
+        const activas = data.filter(row => row.estado === 'ACTIVO').length;
+        const bajas = data.filter(row => row.estado === 'BAJA').length;
+        const canceladas = data.filter(row => row.estado === 'CANCELADA').length;
+
+        const summary = {
+            'Total Ventas': total,
+            'Activas': activas,
+            'Bajas': bajas,
+            'Canceladas': canceladas
+        };
+
+        container.innerHTML = Object.entries(summary).map(([label, value]) => `
+            <div class="summary-card">
+                <div class="summary-card-title">${label}</div>
+                <div class="summary-card-value">${value}</div>
+            </div>
+        `).join('');
+    }
+
+    function formatDate(dateString) {
+        if (!dateString) return '-';
+        // Limpiar las comillas dobles extra que vienen de n8n
+        const cleanString = String(dateString).replace(/\"/g, '');
+        const date = new Date(cleanString);
+        if (isNaN(date)) return '-';
+        return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    function renderTable(data, sortKey = null, sortOrder = 'asc') {
+        const tableBody = document.getElementById('table-body');
+        const tableHeader = document.getElementById('table-header');
+        
+        if (!data || data.length === 0) {
+            tableHeader.innerHTML = '';
+            tableBody.innerHTML = `<tr><td colspan="100%" style="text-align: center;">No se encontraron ventas para este PDV.</td></tr>`;
+            return;
+        }
+
+        let sortedData = [...data];
+
+        if (sortKey) {
+            sortedData.sort((a, b) => {
+                const valA = a[sortKey];
+                const valB = b[sortKey];
+                if (String(valA) < String(valB)) return sortOrder === 'asc' ? -1 : 1;
+                if (String(valA) > String(valB)) return sortOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        
+        if (tableHeader.innerHTML === '' || tableHeader.dataset.rendered !== 'true') {
+            tableHeader.dataset.rendered = 'true';
+            const headers = Object.keys(data[0]);
+            tableHeader.innerHTML = headers.map(key => `<th data-key="${key}">${key.replace(/_/g, ' ')} <span></span></th>`).join('');
+            
+            document.querySelectorAll('#table-header th').forEach(th => {
+                th.addEventListener('click', () => {
+                    const key = th.dataset.key;
+                    const currentOrder = th.dataset.order || 'desc';
+                    const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+                    document.querySelectorAll('#table-header th').forEach(innerTh => {
+                        innerTh.dataset.order = '';
+                        innerTh.querySelector('span').textContent = '';
+                    });
+                    th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼';
+                    th.dataset.order = newOrder;
+                    renderTable(salesDataCache, key, newOrder);
+                });
+            });
+        }
+
+        tableBody.innerHTML = sortedData.map(row => {
+            const cells = Object.entries(row).map(([key, cell]) => {
+                let cellContent = cell;
+                if (key.toLowerCase().includes('fecha')) {
+                    cellContent = formatDate(cell);
+                } else if (key.toLowerCase().includes('estado')) {
+                    const statusClass = `status-${String(cell).toLowerCase()}`;
+                    return `<td><span class="status ${statusClass}">${cell}</span></td>`;
+                }
+                return `<td>${cellContent}</td>`;
+            }).join('');
+            return `<tr>${cells}</tr>`;
+        }).join('');
+    }
+
+    // --- LÓGICA DE FILTRADO ---
+    function applyGlobalFilter() {
+        const filterValue = document.getElementById('filter-global').value.toLowerCase();
+        const filteredData = salesDataCache.filter(row => {
+            return Object.values(row).some(value => 
+                String(value).toLowerCase().includes(filterValue)
+            );
+        });
+        renderTable(filteredData);
+    }
+    document.getElementById('filter-global').addEventListener('input', applyGlobalFilter);
+});
+</script>
+
+</body>
+</html>
+
