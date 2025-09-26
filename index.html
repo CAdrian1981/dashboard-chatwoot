@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard PDV v2.8</title>
+  <title>Dashboard PDV v2.9</title>
   <!-- Librería para Gráficos -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
@@ -15,10 +15,11 @@
       --background-color: #f8f9fa;
       --card-bg-color: #ffffff;
       --text-color: #333;
-      --rappel-plata: rgba(40, 167, 69, 0.5);
-      --rappel-oro: rgba(23, 162, 184, 0.5);
-      --rappel-platino: rgba(255, 193, 7, 0.5);
-      --rappel-diamante: rgba(220, 53, 69, 0.5);
+      --rappel-plata-color: #28a745;
+      --rappel-oro-color: #17a2b8;
+      --rappel-platino-color: #ffc107;
+      --rappel-diamante-color: #dc3545;
+      --proyeccion-color: #fd7e14;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -48,7 +49,6 @@
     /* Sección de Datos del Contacto */
     .contact-info {
       display: grid;
-      /* Ajustado para 5 columnas, forzando una sola fila */
       grid-template-columns: repeat(5, 1fr);
       gap: 10px;
       background-color: var(--card-bg-color);
@@ -79,19 +79,23 @@
     }
     .card {
       background-color: var(--card-bg-color);
-      padding: 10px; /* Padding reducido */
+      padding: 8px; /* Padding reducido para menor altura */
       border-radius: 12px;
       text-align: center;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 65px; /* Altura mínima para consistencia */
     }
     .card-title {
-      font-size: 12px; /* Ligeramente reducido */
+      font-size: 12px;
       font-weight: 600;
       color: var(--secondary-color);
-      margin-bottom: 5px;
+      margin-bottom: 4px;
     }
     .card-value {
-      font-size: 24px; /* Tamaño de números reducido */
+      font-size: 22px; /* Tamaño de números reducido */
       font-weight: 700;
       color: var(--primary-color);
     }
@@ -109,7 +113,7 @@
         padding: 15px;
         border-radius: 12px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
-        height: 300px; /* Altura de gráfico aumentada */
+        height: 300px;
     }
     .rappel-legend-container {
         flex-shrink: 0;
@@ -150,17 +154,6 @@
       border-radius: 12px;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     }
-    .table-controls {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 15px;
-    }
-    .table-controls input {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-    }
     #interactive-table {
       width: 100%;
       border-collapse: collapse;
@@ -176,18 +169,16 @@
       user-select: none;
     }
     #interactive-table th:hover { background-color: #f1f1f1; }
-    /* Estilo para filas intercaladas */
     #interactive-table tbody tr:nth-child(even) { background-color: #f8f9fa; }
     #interactive-table tbody tr:hover { background-color: #e9ecef; }
 
   </style>
 </head>
 <body>
-  <div class="version-tag">v2.8</div>
+  <div class="version-tag">v2.9</div>
   <div class="dashboard-container">
     <!-- Sección de Info de Contacto -->
     <div class="contact-info" id="contact-info-container">
-      <!-- Los datos se inyectarán aquí desde JS -->
     </div>
     
     <!-- Sección de KPIs -->
@@ -206,17 +197,11 @@
         <canvas id="historical-chart"></canvas>
       </div>
       <div class="rappel-legend-container" id="rappel-legend">
-        <!-- Leyenda de Rappel se inyectará aquí -->
       </div>
     </div>
 
-
     <!-- Sección de Tabla -->
     <div class="table-container">
-      <div class="table-controls">
-        <input type="text" id="filter-mes" placeholder="Filtrar por Mes (ej: 202509)">
-        <input type="text" id="filter-pdv" placeholder="Filtrar por ID PDV">
-      </div>
       <table id="interactive-table">
         <thead><tr id="table-header"></tr></thead>
         <tbody id="table-body"></tbody>
@@ -277,7 +262,6 @@ window.addEventListener('load', () => {
             
             updateKpis(data);
             renderChart(data);
-            // Ordenación inicial de la tabla
             renderTable(data, 'Mes', 'desc'); 
         } catch (error) {
             console.error("Error al cargar datos de n8n:", error);
@@ -305,7 +289,7 @@ window.addEventListener('load', () => {
 
     function renderRappelLegend(rappels) {
         const legendContainer = document.getElementById('rappel-legend');
-        const colors = ['var(--rappel-plata)', 'var(--rappel-oro)', 'var(--rappel-platino)', 'var(--rappel-diamante)'];
+        const colors = ['var(--rappel-plata-color)', 'var(--rappel-oro-color)', 'var(--rappel-platino-color)', 'var(--rappel-diamante-color)'];
         
         let legendHTML = '<h6>Objetivos Rappel</h6>';
         let index = 0;
@@ -322,7 +306,7 @@ window.addEventListener('load', () => {
 
     function renderChart(data) {
         const ctx = document.getElementById('historical-chart').getContext('2d');
-        const labels = data.map(d => d.Mes); // No se invierte para que coincida con la tabla
+        const labels = data.map(d => d.Mes);
         const fibraData = data.map(d => d["Fibras brutas"]);
         const movActivosData = data.map(d => d["Mov activos"]);
         
@@ -356,30 +340,30 @@ window.addEventListener('load', () => {
             data: {
                 labels: labels,
                 datasets: [
-                    { label: 'Fibra Bruta', data: fibraData, borderColor: 'var(--primary-color)', tension: 0.1, fill: false },
-                    { label: 'Proyección Fibra', data: proyeccionData, borderColor: 'var(--rappel-oro)', tension: 0.1, borderDash: [5, 5], fill: false },
-                    { label: 'Mov Activos', data: movActivosData, borderColor: 'var(--rappel-plata)', tension: 0.1, fill: false }
+                    { label: 'Fibra Bruta', data: fibraData, borderColor: 'var(--primary-color)', tension: 0.1, fill: false, order: 1 },
+                    { label: 'Mov Activos', data: movActivosData, borderColor: 'var(--rappel-plata-color)', tension: 0.1, fill: false, order: 2 },
+                    { label: 'Proyección Fibra', data: proyeccionData, borderColor: 'var(--proyeccion-color)', tension: 0.1, borderDash: [5, 5], fill: false, order: 3 }
                 ]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false }, // Leyenda de líneas quitada
-                    title: { display: false }, // Título de gráfico quitado
+                    legend: { display: false },
+                    title: { display: false },
                     annotation: {
                         annotations: Object.entries(rappels).map(([label, value], index) => ({
                             type: 'line',
                             yMin: value,
                             yMax: value,
-                            borderColor: ['var(--rappel-plata)', 'var(--rappel-oro)', 'var(--rappel-platino)', 'var(--rappel-diamante)'][index],
-                            borderWidth: 1, // Linea más fina
+                            borderColor: ['var(--rappel-plata-color)', 'var(--rappel-oro-color)', 'var(--rappel-platino-color)', 'var(--rappel-diamante-color)'][index],
+                            borderWidth: 1,
                             borderDash: [10, 5]
                         }))
                     }
                 },
                 scales: { 
-                    x: { ticks: { font: { size: 10 } } }, // Tamaño de meses reducido
+                    x: { ticks: { font: { size: 10 } } },
                     y: { beginAtZero: true } 
                 }
             }
@@ -403,7 +387,6 @@ window.addEventListener('load', () => {
                 const valA = a[sortKey];
                 const valB = b[sortKey];
                 if (typeof valA === 'string' && typeof valB === 'string') {
-                    // Ordenación descendente correcta para texto
                     return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
                 }
                 return sortOrder === 'asc' ? valA - valB : valB - valA;
@@ -417,7 +400,7 @@ window.addEventListener('load', () => {
             document.querySelectorAll('#table-header th').forEach(th => {
                 th.addEventListener('click', () => {
                     const key = th.dataset.key;
-                    const currentOrder = th.dataset.order || 'asc';
+                    const currentOrder = th.dataset.order || 'desc';
                     const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
                     document.querySelectorAll('#table-header th').forEach(innerTh => {
                         innerTh.dataset.order = '';
@@ -425,8 +408,7 @@ window.addEventListener('load', () => {
                     });
                     th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼';
                     th.dataset.order = newOrder;
-                    // Al hacer clic, se re-renderiza con el filtro actual
-                    applyFilters(key, newOrder);
+                    renderTable(n8nDataCache, key, newOrder);
                 });
             });
         }
@@ -435,21 +417,6 @@ window.addEventListener('load', () => {
             <tr>${Object.values(row).map(cell => `<td>${cell}</td>`).join('')}</tr>
         `).join('');
     }
-
-    function applyFilters(sortKey = 'Mes', sortOrder = 'desc') {
-        const mesFilter = document.getElementById('filter-mes').value.toLowerCase();
-        const pdvFilter = document.getElementById('filter-pdv').value.toLowerCase();
-
-        const filteredData = n8nDataCache.filter(row => {
-            const mesMatch = row.Mes.toLowerCase().includes(mesFilter);
-            const pdvMatch = row['ID PDV'].toLowerCase().includes(pdvFilter);
-            return mesMatch && pdvMatch;
-        });
-        renderTable(filteredData, sortKey, sortOrder);
-    }
-    document.getElementById('filter-mes').addEventListener('input', applyFilters);
-    document.getElementById('filter-pdv').addEventListener('input', applyFilters);
-
 });
 </script>
 
