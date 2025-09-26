@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard PDV v2.3</title>
+  <title>Dashboard PDV v2.5</title>
   <!-- Librería para Gráficos -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
@@ -137,7 +137,7 @@
 <body>
 
   <div class="dashboard-container">
-    <div id="dashboard-header" class="dashboard-header">Dashboard PDV v2.3</div>
+    <div id="dashboard-header" class="dashboard-header">Dashboard PDV v2.5</div>
 
     <!-- Sección de Info de Contacto -->
     <div class="contact-info" id="contact-info-container">
@@ -173,7 +173,10 @@
   </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('load', () => {
+    // CORRECCIÓN: El plugin de anotaciones se registra automáticamente al incluir el script.
+    // No es necesario un registro manual, y hacerlo provocaba el error.
+
     let hasProcessed = false;
     let n8nDataCache = []; // Caché para los datos de n8n
     let historicalChart = null; // Variable para la instancia del gráfico
@@ -315,9 +318,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 },
                 scales: { y: { beginAtZero: true } }
-            },
-            // CORRECCIÓN: El registro del plugin se hace a nivel de instancia del gráfico
-            plugins: [ChartjsPluginAnnotation]
+            }
         });
     }
 
@@ -391,3 +392,4 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
+
