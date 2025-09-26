@@ -2,96 +2,377 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard PDV v1.7</title>
+  <title>Dashboard PDV v2.0</title>
+  <!-- Librería para Gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
+
   <style>
-    body { font-family: sans-serif; background: #f8f9fa; padding: 20px; text-align: center; color: #333; }
-    h2 { margin-bottom: 20px; font-size: 18px; }
-    .card-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
-    .card { background: white; padding: 15px 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-width: 150px; }
-    .card-title { font-size: 14px; color: #6c757d; }
-    .value { font-size: 24px; font-weight: bold; margin-top: 5px; }
-    /* El panel de depuración ya no es necesario, lo ocultamos */
-    #debug-info { display: none; }
+    /* Estilos Generales */
+    :root {
+      --primary-color: #007bff;
+      --secondary-color: #6c757d;
+      --background-color: #f8f9fa;
+      --card-bg-color: #ffffff;
+      --text-color: #333;
+      --rappel-1: #28a745;
+      --rappel-2: #17a2b8;
+      --rappel-3: #ffc107;
+      --rappel-4: #dc3545;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 15px;
+      font-size: 14px;
+    }
+    .dashboard-container {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    /* Sección de Datos del Contacto */
+    .contact-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 10px;
+      background-color: var(--card-bg-color);
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    .info-item { text-align: left; }
+    .info-item-label {
+      font-weight: 600;
+      color: var(--secondary-color);
+      font-size: 12px;
+      margin-bottom: 2px;
+    }
+    .info-item-value {
+      font-weight: 500;
+      padding: 4px 8px;
+      border-radius: 6px;
+      background-color: #e9ecef;
+    }
+
+    /* Sección de Tarjetas KPI */
+    .kpi-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+    }
+    .card {
+      background-color: var(--card-bg-color);
+      padding: 15px;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--secondary-color);
+      margin-bottom: 8px;
+    }
+    .card-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    /* Gráfico Histórico */
+    .chart-container {
+      background-color: var(--card-bg-color);
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    /* Tabla Interactiva */
+    .table-container {
+      background-color: var(--card-bg-color);
+      padding: 15px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    .table-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .table-controls input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    #interactive-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    #interactive-table th, #interactive-table td {
+      padding: 8px;
+      text-align: left;
+      border-bottom: 1px solid #dee2e6;
+    }
+    #interactive-table th {
+      cursor: pointer;
+      user-select: none;
+    }
+    #interactive-table th:hover { background-color: #f1f1f1; }
+    #interactive-table tbody tr:hover { background-color: #f8f9fa; }
+
   </style>
 </head>
 <body>
 
-  <h2 id="title">Dashboard PDV v1.7 - Cargando...</h2>
-  <p id="debug-info"></p>
-  
-  <div class="card-container">
-    <div class="card"><div class="card-title">Fibras Brutas</div><div id="fibra" class="value">-</div></div>
-    <div class="card"><div class="card-title">Mov Activos</div><div id="movact" class="value">-</div></div>
-    <div class="card"><div class="card-title">Mov en Vuelo</div><div id="movvuelo" class="value">-</div></div>
-    <div class="card"><div class="card-title">% Línea Gratis</div><div id="gratis" class="value">-</div></div>
-    <div class="card"><div class="card-title">Días Instalación</div><div id="dias" class="value">-</div></div>
+  <div class="dashboard-container">
+    <!-- Sección de Info de Contacto -->
+    <div class="contact-info" id="contact-info-container">
+      <!-- Los datos se inyectarán aquí desde JS -->
+    </div>
+    
+    <!-- Sección de KPIs -->
+    <div class="kpi-cards">
+      <div class="card"><div class="card-title">Fibras Brutas</div><div id="fibra" class="card-value">-</div></div>
+      <div class="card"><div class="card-title">Proyección Fibra</div><div id="proyeccion" class="card-value">-</div></div>
+      <div class="card"><div class="card-title">Mov Activos</div><div id="movact" class="card-value">-</div></div>
+      <div class="card"><div class="card-title">Mov en Vuelo</div><div id="movvuelo" class="card-value">-</div></div>
+      <div class="card"><div class="card-title">% Línea Gratis</div><div id="gratis" class="card-value">-</div></div>
+      <div class="card"><div class="card-title">Días Instalación</div><div id="dias" class="card-value">-</div></div>
+    </div>
+
+    <!-- Sección de Gráfico -->
+    <div class="chart-container">
+      <canvas id="historical-chart"></canvas>
+    </div>
+
+    <!-- Sección de Tabla -->
+    <div class="table-container">
+      <div class="table-controls">
+        <input type="text" id="filter-mes" placeholder="Filtrar por Mes (ej: 202509)">
+        <input type="text" id="filter-pdv" placeholder="Filtrar por ID PDV">
+      </div>
+      <table id="interactive-table">
+        <thead><tr id="table-header"></tr></thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
   </div>
 
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const titleElement = document.getElementById("title");
-      let hasProcessed = false;
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    let hasProcessed = false;
+    let n8nDataCache = []; // Caché para los datos de n8n
+    let historicalChart = null; // Variable para la instancia del gráfico
 
-      function handleWindowMessage(event) {
-        if (event.source !== window.parent || hasProcessed) {
-          return;
-        }
-
+    // -- INICIO: COMUNICACIÓN CON CHATWOOT --
+    function handleWindowMessage(event) {
+        if (event.source !== window.parent || hasProcessed) return;
         try {
-          // 1. Decodificamos el TEXTO a un OBJETO JSON
-          const parsedData = JSON.parse(event.data);
+            const parsedData = JSON.parse(event.data);
+            const pdvId = parsedData?.data?.contact?.custom_attributes?.id_pdv;
+            
+            if (pdvId) {
+                hasProcessed = true;
+                updateContactInfo(parsedData.data.contact);
+                fetchPdvData(pdvId);
+            }
+        } catch (error) { /* Ignorar mensajes no JSON */ }
+    }
+    window.addEventListener('message', handleWindowMessage);
+    window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
 
-          // 2. Usamos la RUTA CORRECTA Y DEFINITIVA para extraer el ID
-          const pdvId = parsedData?.data?.contact?.custom_attributes?.id_pdv;
+    // -- INICIO: LÓGICA DE ACTUALIZACIÓN DE UI --
+    
+    function updateContactInfo(contact) {
+        const container = document.getElementById('contact-info-container');
+        const customAttrs = contact.custom_attributes;
+        const info = {
+            'Empresa': contact.company_name || '-',
+            'Estado PDV': customAttrs.statuspdv || '-',
+            'Documentación': customAttrs.documentacion || '-',
+            'Cargo': customAttrs.cargo || '-',
+            'Permisos': customAttrs.permisos || '-',
+            'WhatsApp': customAttrs.whatsapp || '-'
+        };
 
-          if (pdvId) {
-            hasProcessed = true;
-            titleElement.textContent = `Buscando datos para PDV: ${pdvId}...`;
-            fetchPdvData(pdvId);
-          }
-        } catch (error) {
-          // Si el mensaje no es un JSON válido, simplemente lo ignoramos.
-          console.error("Error al procesar el mensaje de Chatwoot:", error);
-        }
-      }
+        container.innerHTML = Object.entries(info).map(([label, value]) => `
+            <div class="info-item">
+                <div class="info-item-label">${label}</div>
+                <div class="info-item-value">${value}</div>
+            </div>
+        `).join('');
+    }
 
-      window.addEventListener('message', handleWindowMessage);
-      window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
-      
-      // --- Funciones del Dashboard ---
-      async function fetchPdvData(pdvId) {
-          try {
+    async function fetchPdvData(pdvId) {
+        try {
             const url = `https://n8n.vozipyme.es/webhook/dashboard_chatwoot_pdv?pdv_id=${pdvId}`;
             const response = await fetch(url);
-            if (!response.ok) {
-              titleElement.textContent = `Error desde n8n (código: ${response.status})`;
-              throw new Error(`Error HTTP: ${response.status}`);
-            }
+            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
             const data = await response.json();
-            updateUI(data);
-          } catch (error) {
-            console.error("Error cargando datos del PDV:", error);
-            titleElement.textContent = "Fallo al cargar los datos desde n8n";
-          }
-      }
+            n8nDataCache = data;
+            
+            updateKpis(data);
+            renderChart(data);
+            renderTable(data);
+        } catch (error) {
+            console.error("Error al cargar datos de n8n:", error);
+        }
+    }
+    
+    function updateKpis(data) {
+        const currentMonthId = new Date().toISOString().slice(0, 7).replace('-', '');
+        const record = data.find(row => row.Mes === currentMonthId);
+        if (!record) return;
 
-      function updateUI(data) {
-          const currentMonth = new Date().toISOString().slice(0, 7).replace('-', '');
-          const record = data.find(row => row.Mes === currentMonth);
-          if (!record) {
-            titleElement.textContent = "Sin datos para el mes actual en n8n";
-            return;
-          }
-          const elementMapping = { "fibra": record["Fibras brutas"], "movact": record["Mov activos"], "movvuelo": record["Mov en vuelo"], "gratis": record["% Linea gratis"], "dias": record["Días instalación"] };
-          for (const id in elementMapping) {
-            const element = document.getElementById(id);
-            if (element) {
-              element.textContent = elementMapping[id] ?? '-';
+        // Cálculo de Proyección
+        const fibraBruta = parseFloat(record["Fibras brutas"]) || 0;
+        const today = new Date();
+        const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+        const dayOfMonth = today.getDate();
+        const proyeccion = (fibraBruta / dayOfMonth) * daysInMonth;
+
+        document.getElementById('fibra').textContent = record["Fibras brutas"] ?? '-';
+        document.getElementById('proyeccion').textContent = proyeccion.toFixed(2);
+        document.getElementById('movact').textContent = record["Mov activos"] ?? '-';
+        document.getElementById('movvuelo').textContent = record["Mov en vuelo"] ?? '-';
+        document.getElementById('gratis').textContent = record["% Linea gratis"] ?? '-';
+        document.getElementById('dias').textContent = record["Días instalación"] ?? '-';
+    }
+
+    function renderChart(data) {
+        const ctx = document.getElementById('historical-chart').getContext('2d');
+        const labels = data.map(d => d.Mes).reverse();
+        const fibraData = data.map(d => d["Fibras brutas"]).reverse();
+        const movActivosData = data.map(d => d["Mov activos"]).reverse();
+        
+        // Calcular proyección para todos los meses
+        const proyeccionData = data.map(d => {
+            const fibraBruta = parseFloat(d["Fibras brutas"]) || 0;
+            const year = parseInt(d.Mes.substring(0, 4));
+            const month = parseInt(d.Mes.substring(4, 6));
+            const daysInMonth = new Date(year, month, 0).getDate();
+            // Para meses pasados, la proyección es igual al valor real.
+            // Para el mes actual, se calcula.
+            if (`${year}${String(month).padStart(2, '0')}` === new Date().toISOString().slice(0,7).replace('-','')) {
+                 const dayOfMonth = new Date().getDate();
+                 return (fibraBruta / dayOfMonth) * daysInMonth;
             }
-          }
-          titleElement.textContent = `Totales del PDV para ${currentMonth}`;
-      }
-    });
-  </script>
+            return fibraBruta;
+
+        }).reverse();
+        
+        const rappels = {
+            'Rappel 1 (5)': 5,
+            'Rappel 2 (10)': 10,
+            'Rappel 3 (15)': 15,
+            'Rappel 4 (20)': 20
+        };
+
+        if (historicalChart) {
+            historicalChart.destroy();
+        }
+
+        historicalChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: 'Fibra Bruta', data: fibraData, borderColor: 'rgb(0, 123, 255)', tension: 0.1, fill: false },
+                    { label: 'Proyección Fibra', data: proyeccionData, borderColor: 'rgb(23, 162, 184)', tension: 0.1, borderDash: [5, 5], fill: false },
+                    { label: 'Mov Activos', data: movActivosData, borderColor: 'rgb(40, 167, 69)', tension: 0.1, fill: false }
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'top' },
+                    title: { display: true, text: 'Histórico Mensual' },
+                    annotation: {
+                        annotations: Object.entries(rappels).map(([label, value], index) => ({
+                            type: 'line',
+                            yMin: value,
+                            yMax: value,
+                            borderColor: ['#28a745', '#17a2b8', '#ffc107', '#dc3545'][index],
+                            borderWidth: 2,
+                            borderDash: [10, 5],
+                            label: {
+                                content: label,
+                                enabled: true,
+                                position: 'start',
+                                backgroundColor: ['#28a745', '#17a2b8', '#ffc107', '#dc3545'][index]
+                            }
+                        }))
+                    }
+                },
+                scales: { y: { beginAtZero: true } }
+            },
+            plugins: [ChartjsPluginAnnotation]
+        });
+    }
+
+    function renderTable(data, sortKey = null, sortOrder = 'asc') {
+        const tableBody = document.getElementById('table-body');
+        const tableHeader = document.getElementById('table-header');
+        
+        if (!data || data.length === 0) return;
+
+        // Clonar datos para no mutar el caché
+        let sortedData = [...data];
+
+        // Ordenar
+        if (sortKey) {
+            sortedData.sort((a, b) => {
+                if (a[sortKey] < b[sortKey]) return sortOrder === 'asc' ? -1 : 1;
+                if (a[sortKey] > b[sortKey]) return sortOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        
+        // Crear cabecera si no existe
+        if (tableHeader.innerHTML === '') {
+            const headers = Object.keys(data[0]);
+            tableHeader.innerHTML = headers.map(key => `<th data-key="${key}">${key}</th>`).join('');
+            // Añadir listeners de ordenación a las cabeceras
+            document.querySelectorAll('#table-header th').forEach(th => {
+                th.addEventListener('click', () => {
+                    const key = th.dataset.key;
+                    const currentOrder = th.dataset.order || 'asc';
+                    const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+                    th.dataset.order = newOrder;
+                    renderTable(n8nDataCache, key, newOrder);
+                });
+            });
+        }
+
+        // Renderizar filas
+        tableBody.innerHTML = sortedData.map(row => `
+            <tr>${Object.values(row).map(cell => `<td>${cell}</td>`).join('')}</tr>
+        `).join('');
+    }
+
+    // -- INICIO: LÓGICA DE FILTRADO DE TABLA --
+    function applyFilters() {
+        const mesFilter = document.getElementById('filter-mes').value.toLowerCase();
+        const pdvFilter = document.getElementById('filter-pdv').value.toLowerCase();
+
+        const filteredData = n8nDataCache.filter(row => {
+            const mesMatch = row.Mes.toLowerCase().includes(mesFilter);
+            const pdvMatch = row['ID PDV'].toLowerCase().includes(pdvFilter);
+            return mesMatch && pdvMatch;
+        });
+        renderTable(filteredData);
+    }
+    document.getElementById('filter-mes').addEventListener('input', applyFilters);
+    document.getElementById('filter-pdv').addEventListener('input', applyFilters);
+
+});
+</script>
+
 </body>
 </html>
