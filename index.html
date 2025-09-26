@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard PDV v1.4</title>
+  <title>Dashboard PDV v1.5</title>
   <style>
     body { font-family: sans-serif; background: #f8f9fa; padding: 20px; text-align: center; color: #333; }
     h2 { margin-bottom: 20px; font-size: 18px; }
@@ -10,14 +10,13 @@
     .card { background: white; padding: 15px 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-width: 150px; }
     .card-title { font-size: 14px; color: #6c757d; }
     .value { font-size: 24px; font-weight: bold; margin-top: 5px; }
-    /* Puedes eliminar el #debug-info si quieres una versión limpia */
     #debug-info { display: none; font-family: monospace; color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px; margin-top: -10px; margin-bottom: 20px; text-align: left; white-space: pre-wrap; word-wrap: break-word; max-height: 150px; overflow-y: auto; }
   </style>
 </head>
 <body>
 
-  <h2 id="title">Dashboard PDV v1.4 - Cargando...</h2>
-  <p id="debug-info">Esperando datos de la conversación...</p>
+  <h2 id="title">Dashboard PDV v1.5 - Cargando...</h2>
+  <p id="debug-info"></p>
   
   <div class="card-container">
     <div class="card"><div class="card-title">Fibras Brutas</div><div id="fibra" class="value">-</div></div>
@@ -29,7 +28,6 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      const debugElement = document.getElementById("debug-info");
       const titleElement = document.getElementById("title");
 
       function handleWindowMessage(event) {
@@ -38,18 +36,25 @@
         }
 
         const eventData = event.data;
-        
-        // Mostramos el objeto recibido para futuras depuraciones si fuera necesario
-        // debugElement.textContent = JSON.stringify(eventData, null, 2);
+        let pdvId = null;
 
-        // v1.4: Ruta corregida según los datos recibidos que tú encontraste
-        const pdvId = eventData?.sender?.contact?.custom_attributes?.id_pdv;
+        // v1.5: Lógica robusta para encontrar el id_pdv en CUALQUIER estructura conocida
+        if (eventData?.sender?.contact?.custom_attributes?.id_pdv) {
+          // Estructura de evento 'message_created'
+          pdvId = eventData.sender.contact.custom_attributes.id_pdv;
+        } else if (eventData?.meta?.contact?.custom_attributes?.id_pdv) {
+          // Estructura de evento de carga inicial (la que encontraste en la red)
+          pdvId = eventData.meta.contact.custom_attributes.id_pdv;
+        } else if (eventData?.contact?.custom_attributes?.id_pdv) {
+          // Estructura directa del contexto (según la documentación)
+          pdvId = eventData.contact.custom_attributes.id_pdv;
+        }
 
-        if (pdvId) {
+        // Solo actuamos si hemos encontrado un pdvId y el dashboard no está ya cargado
+        if (pdvId && titleElement.textContent.includes("Cargando")) {
           titleElement.textContent = `Buscando datos para PDV: ${pdvId}...`;
           fetchPdvData(pdvId);
         }
-        // Ya no necesitamos un 'else', si no hay pdvId, simplemente no hará nada.
       }
 
       window.addEventListener('message', handleWindowMessage);
