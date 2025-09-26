@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard PDV v2.6</title>
+  <title>Dashboard PDV v2.7</title>
   <!-- Librería para Gráficos -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
@@ -15,10 +15,10 @@
       --background-color: #f8f9fa;
       --card-bg-color: #ffffff;
       --text-color: #333;
-      --rappel-1: #28a745;
-      --rappel-2: #17a2b8;
-      --rappel-3: #ffc107;
-      --rappel-4: #dc3545;
+      --rappel-plata: #28a745;
+      --rappel-oro: #17a2b8;
+      --rappel-platino: #ffc107;
+      --rappel-diamante: #dc3545;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -27,17 +27,22 @@
       margin: 0;
       padding: 15px;
       font-size: 14px;
+      position: relative;
+    }
+    .version-tag {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        font-size: 10px;
+        color: #aaa;
+        background-color: rgba(0,0,0,0.05);
+        padding: 2px 5px;
+        border-radius: 4px;
     }
     .dashboard-container {
       display: flex;
       flex-direction: column;
       gap: 15px;
-    }
-    .dashboard-header {
-      font-size: 18px;
-      font-weight: 600;
-      text-align: center;
-      margin-bottom: -5px;
     }
 
     /* Sección de Datos del Contacto */
@@ -54,7 +59,7 @@
     .info-item-label {
       font-weight: 600;
       color: var(--secondary-color);
-      font-size: 12px;
+      font-size: 11px; /* Letra reducida */
       margin-bottom: 2px;
     }
     .info-item-value {
@@ -62,6 +67,7 @@
       padding: 4px 8px;
       border-radius: 6px;
       background-color: #e9ecef;
+      font-size: 13px; /* Letra reducida */
     }
 
     /* Sección de Tarjetas KPI */
@@ -89,12 +95,50 @@
       color: var(--primary-color);
     }
 
-    /* Gráfico Histórico */
+    /* Contenedor de Gráfico y Leyenda Rappel */
+     .chart-section-container {
+        display: flex;
+        flex-direction: row;
+        gap: 15px;
+        align-items: stretch;
+    }
     .chart-container {
-      background-color: var(--card-bg-color);
-      padding: 15px;
-      border-radius: 12px;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        flex-grow: 1; /* El gráfico toma el espacio disponible */
+        background-color: var(--card-bg-color);
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+    .rappel-legend-container {
+        flex-shrink: 0;
+        width: 130px; /* Ancho fijo para la leyenda */
+        background-color: var(--card-bg-color);
+        padding: 15px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 12px;
+    }
+    .rappel-legend-container h6 {
+        margin: 0 0 5px 0;
+        text-align: center;
+        color: var(--secondary-color);
+        font-weight: 600;
+        font-size: 14px;
+    }
+    .rappel-item {
+        display: flex;
+        align-items: center;
+        font-size: 12px;
+    }
+    .rappel-color-box {
+        width: 12px;
+        height: 12px;
+        margin-right: 8px;
+        border-radius: 3px;
+        flex-shrink: 0;
     }
 
     /* Tabla Interactiva */
@@ -135,10 +179,8 @@
   </style>
 </head>
 <body>
-
+  <div class="version-tag">v2.7</div>
   <div class="dashboard-container">
-    <div id="dashboard-header" class="dashboard-header">Dashboard PDV v2.6</div>
-
     <!-- Sección de Info de Contacto -->
     <div class="contact-info" id="contact-info-container">
       <!-- Los datos se inyectarán aquí desde JS -->
@@ -154,10 +196,16 @@
       <div class="card"><div class="card-title">Días Instalación</div><div id="dias" class="card-value">-</div></div>
     </div>
 
-    <!-- Sección de Gráfico -->
-    <div class="chart-container">
-      <canvas id="historical-chart"></canvas>
+    <!-- Sección de Gráfico y Leyenda -->
+    <div class="chart-section-container">
+      <div class="chart-container">
+        <canvas id="historical-chart"></canvas>
+      </div>
+      <div class="rappel-legend-container" id="rappel-legend">
+        <!-- Leyenda de Rappel se inyectará aquí -->
+      </div>
     </div>
+
 
     <!-- Sección de Tabla -->
     <div class="table-container">
@@ -186,7 +234,6 @@ window.addEventListener('load', () => {
             
             if (pdvId) {
                 hasProcessed = true;
-                document.getElementById('dashboard-header').textContent += ` - ${pdvId}`;
                 updateContactInfo(parsedData.data.contact);
                 fetchPdvData(pdvId);
             }
@@ -198,7 +245,6 @@ window.addEventListener('load', () => {
     function updateContactInfo(contact) {
         const container = document.getElementById('contact-info-container');
         const customAttrs = contact.custom_attributes;
-        // CORRECCIÓN: La ruta correcta para company_name está en additional_attributes
         const additionalAttrs = contact.additional_attributes;
 
         const info = {
@@ -253,6 +299,23 @@ window.addEventListener('load', () => {
         document.getElementById('dias').textContent = record["Días instalación"] ?? '-';
     }
 
+    function renderRappelLegend(rappels) {
+        const legendContainer = document.getElementById('rappel-legend');
+        const colors = ['var(--rappel-plata)', 'var(--rappel-oro)', 'var(--rappel-platino)', 'var(--rappel-diamante)'];
+        
+        let legendHTML = '<h6>Objetivos Rappel</h6>';
+        let index = 0;
+        for (const label in rappels) {
+            legendHTML += `
+                <div class="rappel-item">
+                    <div class="rappel-color-box" style="background-color: ${colors[index]};"></div>
+                    <span>${label}</span>
+                </div>`;
+            index++;
+        }
+        legendContainer.innerHTML = legendHTML;
+    }
+
     function renderChart(data) {
         const ctx = document.getElementById('historical-chart').getContext('2d');
         const labels = data.map(d => d.Mes).reverse();
@@ -272,11 +335,13 @@ window.addEventListener('load', () => {
         }).reverse();
         
         const rappels = {
-            'Rappel 1 (5)': 5,
-            'Rappel 2 (10)': 10,
-            'Rappel 3 (15)': 15,
-            'Rappel 4 (20)': 20
+            'Plata (3)': 3,
+            'Oro (9)': 9,
+            'Platino (20)': 20,
+            'Diamante (36)': 36
         };
+        
+        renderRappelLegend(rappels);
 
         if (historicalChart) {
             historicalChart.destroy();
@@ -287,13 +352,14 @@ window.addEventListener('load', () => {
             data: {
                 labels: labels,
                 datasets: [
-                    { label: 'Fibra Bruta', data: fibraData, borderColor: 'rgb(0, 123, 255)', tension: 0.1, fill: false },
-                    { label: 'Proyección Fibra', data: proyeccionData, borderColor: 'rgb(23, 162, 184)', tension: 0.1, borderDash: [5, 5], fill: false },
-                    { label: 'Mov Activos', data: movActivosData, borderColor: 'rgb(40, 167, 69)', tension: 0.1, fill: false }
+                    { label: 'Fibra Bruta', data: fibraData, borderColor: 'var(--primary-color)', tension: 0.1, fill: false },
+                    { label: 'Proyección Fibra', data: proyeccionData, borderColor: 'var(--rappel-oro)', tension: 0.1, borderDash: [5, 5], fill: false },
+                    { label: 'Mov Activos', data: movActivosData, borderColor: 'var(--rappel-plata)', tension: 0.1, fill: false }
                 ]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
                 plugins: {
                     legend: { position: 'top' },
                     title: { display: true, text: 'Histórico Mensual' },
@@ -302,14 +368,11 @@ window.addEventListener('load', () => {
                             type: 'line',
                             yMin: value,
                             yMax: value,
-                            borderColor: ['#28a745', '#17a2b8', '#ffc107', '#dc3545'][index],
+                            borderColor: ['var(--rappel-plata)', 'var(--rappel-oro)', 'var(--rappel-platino)', 'var(--rappel-diamante)'][index],
                             borderWidth: 2,
                             borderDash: [10, 5],
                             label: {
-                                content: label,
-                                enabled: true,
-                                position: 'start',
-                                backgroundColor: ['#28a745', '#17a2b8', '#ffc107', '#dc3545'][index]
+                                enabled: false // Leyenda externa
                             }
                         }))
                     }
@@ -335,9 +398,8 @@ window.addEventListener('load', () => {
             sortedData.sort((a, b) => {
                 const valA = a[sortKey];
                 const valB = b[sortKey];
-
                 if (typeof valA === 'string' && typeof valB === 'string') {
-                    return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                    return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(a);
                 }
                 return sortOrder === 'asc' ? valA - valB : valB - valA;
             });
@@ -352,12 +414,10 @@ window.addEventListener('load', () => {
                     const key = th.dataset.key;
                     const currentOrder = th.dataset.order || 'asc';
                     const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
-                    
                     document.querySelectorAll('#table-header th').forEach(innerTh => {
                         innerTh.dataset.order = '';
                         innerTh.querySelector('span').textContent = '';
                     });
-
                     th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼';
                     th.dataset.order = newOrder;
                     renderTable(n8nDataCache, key, newOrder);
@@ -389,3 +449,4 @@ window.addEventListener('load', () => {
 
 </body>
 </html>
+
