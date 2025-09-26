@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard PDV v2.7</title>
+  <title>Dashboard PDV v2.8</title>
   <!-- Librería para Gráficos -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
@@ -15,10 +15,10 @@
       --background-color: #f8f9fa;
       --card-bg-color: #ffffff;
       --text-color: #333;
-      --rappel-plata: #28a745;
-      --rappel-oro: #17a2b8;
-      --rappel-platino: #ffc107;
-      --rappel-diamante: #dc3545;
+      --rappel-plata: rgba(40, 167, 69, 0.5);
+      --rappel-oro: rgba(23, 162, 184, 0.5);
+      --rappel-platino: rgba(255, 193, 7, 0.5);
+      --rappel-diamante: rgba(220, 53, 69, 0.5);
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -48,7 +48,8 @@
     /* Sección de Datos del Contacto */
     .contact-info {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      /* Ajustado para 5 columnas, forzando una sola fila */
+      grid-template-columns: repeat(5, 1fr);
       gap: 10px;
       background-color: var(--card-bg-color);
       padding: 15px;
@@ -59,7 +60,7 @@
     .info-item-label {
       font-weight: 600;
       color: var(--secondary-color);
-      font-size: 11px; /* Letra reducida */
+      font-size: 11px;
       margin-bottom: 2px;
     }
     .info-item-value {
@@ -67,7 +68,7 @@
       padding: 4px 8px;
       border-radius: 6px;
       background-color: #e9ecef;
-      font-size: 13px; /* Letra reducida */
+      font-size: 13px;
     }
 
     /* Sección de Tarjetas KPI */
@@ -78,19 +79,19 @@
     }
     .card {
       background-color: var(--card-bg-color);
-      padding: 15px;
+      padding: 10px; /* Padding reducido */
       border-radius: 12px;
       text-align: center;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     }
     .card-title {
-      font-size: 13px;
+      font-size: 12px; /* Ligeramente reducido */
       font-weight: 600;
       color: var(--secondary-color);
-      margin-bottom: 8px;
+      margin-bottom: 5px;
     }
     .card-value {
-      font-size: 28px;
+      font-size: 24px; /* Tamaño de números reducido */
       font-weight: 700;
       color: var(--primary-color);
     }
@@ -103,15 +104,16 @@
         align-items: stretch;
     }
     .chart-container {
-        flex-grow: 1; /* El gráfico toma el espacio disponible */
+        flex-grow: 1;
         background-color: var(--card-bg-color);
         padding: 15px;
         border-radius: 12px;
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        height: 300px; /* Altura de gráfico aumentada */
     }
     .rappel-legend-container {
         flex-shrink: 0;
-        width: 130px; /* Ancho fijo para la leyenda */
+        width: 130px;
         background-color: var(--card-bg-color);
         padding: 15px;
         border-radius: 12px;
@@ -174,12 +176,14 @@
       user-select: none;
     }
     #interactive-table th:hover { background-color: #f1f1f1; }
-    #interactive-table tbody tr:hover { background-color: #f8f9fa; }
+    /* Estilo para filas intercaladas */
+    #interactive-table tbody tr:nth-child(even) { background-color: #f8f9fa; }
+    #interactive-table tbody tr:hover { background-color: #e9ecef; }
 
   </style>
 </head>
 <body>
-  <div class="version-tag">v2.7</div>
+  <div class="version-tag">v2.8</div>
   <div class="dashboard-container">
     <!-- Sección de Info de Contacto -->
     <div class="contact-info" id="contact-info-container">
@@ -251,7 +255,6 @@ window.addEventListener('load', () => {
             'Empresa': additionalAttrs.company_name || '-',
             'Estado PDV': customAttrs.statuspdv || '-',
             'Documentación': customAttrs.documentacion || '-',
-            'Cargo': customAttrs.cargo || '-',
             'Permisos': customAttrs.permisos || '-',
             'WhatsApp': customAttrs.whatsapp || '-'
         };
@@ -274,7 +277,8 @@ window.addEventListener('load', () => {
             
             updateKpis(data);
             renderChart(data);
-            renderTable(data);
+            // Ordenación inicial de la tabla
+            renderTable(data, 'Mes', 'desc'); 
         } catch (error) {
             console.error("Error al cargar datos de n8n:", error);
         }
@@ -318,9 +322,9 @@ window.addEventListener('load', () => {
 
     function renderChart(data) {
         const ctx = document.getElementById('historical-chart').getContext('2d');
-        const labels = data.map(d => d.Mes).reverse();
-        const fibraData = data.map(d => d["Fibras brutas"]).reverse();
-        const movActivosData = data.map(d => d["Mov activos"]).reverse();
+        const labels = data.map(d => d.Mes); // No se invierte para que coincida con la tabla
+        const fibraData = data.map(d => d["Fibras brutas"]);
+        const movActivosData = data.map(d => d["Mov activos"]);
         
         const proyeccionData = data.map(d => {
             const fibraBruta = parseFloat(d["Fibras brutas"]) || 0;
@@ -332,7 +336,7 @@ window.addEventListener('load', () => {
                  return (fibraBruta / dayOfMonth) * daysInMonth;
             }
             return fibraBruta;
-        }).reverse();
+        });
         
         const rappels = {
             'Plata (3)': 3,
@@ -361,23 +365,23 @@ window.addEventListener('load', () => {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: 'top' },
-                    title: { display: true, text: 'Histórico Mensual' },
+                    legend: { display: false }, // Leyenda de líneas quitada
+                    title: { display: false }, // Título de gráfico quitado
                     annotation: {
                         annotations: Object.entries(rappels).map(([label, value], index) => ({
                             type: 'line',
                             yMin: value,
                             yMax: value,
                             borderColor: ['var(--rappel-plata)', 'var(--rappel-oro)', 'var(--rappel-platino)', 'var(--rappel-diamante)'][index],
-                            borderWidth: 2,
-                            borderDash: [10, 5],
-                            label: {
-                                enabled: false // Leyenda externa
-                            }
+                            borderWidth: 1, // Linea más fina
+                            borderDash: [10, 5]
                         }))
                     }
                 },
-                scales: { y: { beginAtZero: true } }
+                scales: { 
+                    x: { ticks: { font: { size: 10 } } }, // Tamaño de meses reducido
+                    y: { beginAtZero: true } 
+                }
             }
         });
     }
@@ -399,7 +403,8 @@ window.addEventListener('load', () => {
                 const valA = a[sortKey];
                 const valB = b[sortKey];
                 if (typeof valA === 'string' && typeof valB === 'string') {
-                    return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(a);
+                    // Ordenación descendente correcta para texto
+                    return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
                 }
                 return sortOrder === 'asc' ? valA - valB : valB - valA;
             });
@@ -420,7 +425,8 @@ window.addEventListener('load', () => {
                     });
                     th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼';
                     th.dataset.order = newOrder;
-                    renderTable(n8nDataCache, key, newOrder);
+                    // Al hacer clic, se re-renderiza con el filtro actual
+                    applyFilters(key, newOrder);
                 });
             });
         }
@@ -430,7 +436,7 @@ window.addEventListener('load', () => {
         `).join('');
     }
 
-    function applyFilters() {
+    function applyFilters(sortKey = 'Mes', sortOrder = 'desc') {
         const mesFilter = document.getElementById('filter-mes').value.toLowerCase();
         const pdvFilter = document.getElementById('filter-pdv').value.toLowerCase();
 
@@ -439,7 +445,7 @@ window.addEventListener('load', () => {
             const pdvMatch = row['ID PDV'].toLowerCase().includes(pdvFilter);
             return mesMatch && pdvMatch;
         });
-        renderTable(filteredData, null);
+        renderTable(filteredData, sortKey, sortOrder);
     }
     document.getElementById('filter-mes').addEventListener('input', applyFilters);
     document.getElementById('filter-pdv').addEventListener('input', applyFilters);
@@ -449,4 +455,3 @@ window.addEventListener('load', () => {
 
 </body>
 </html>
-
