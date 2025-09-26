@@ -2,20 +2,21 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard PDV v1.3</title>
+  <title>Dashboard PDV v1.4</title>
   <style>
     body { font-family: sans-serif; background: #f8f9fa; padding: 20px; text-align: center; color: #333; }
-    h2 { margin-bottom: 10px; font-size: 18px; }
+    h2 { margin-bottom: 20px; font-size: 18px; }
     .card-container { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; }
     .card { background: white; padding: 15px 20px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); min-width: 150px; }
     .card-title { font-size: 14px; color: #6c757d; }
     .value { font-size: 24px; font-weight: bold; margin-top: 5px; }
-    #debug-info { font-family: monospace; color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px; margin-top: 0; margin-bottom: 20px; text-align: left; white-space: pre-wrap; word-wrap: break-word; }
+    /* Puedes eliminar el #debug-info si quieres una versión limpia */
+    #debug-info { display: none; font-family: monospace; color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px; margin-top: -10px; margin-bottom: 20px; text-align: left; white-space: pre-wrap; word-wrap: break-word; max-height: 150px; overflow-y: auto; }
   </style>
 </head>
 <body>
 
-  <h2 id="title">Dashboard PDV v1.3 - Cargando...</h2>
+  <h2 id="title">Dashboard PDV v1.4 - Cargando...</h2>
   <p id="debug-info">Esperando datos de la conversación...</p>
   
   <div class="card-container">
@@ -31,7 +32,6 @@
       const debugElement = document.getElementById("debug-info");
       const titleElement = document.getElementById("title");
 
-      // v1.3: Lógica simplificada para capturar CUALQUIER mensaje de la ventana padre
       function handleWindowMessage(event) {
         if (event.source !== window.parent) {
           return;
@@ -39,21 +39,17 @@
 
         const eventData = event.data;
         
-        // ¡ÉXITO! Mostramos el objeto recibido en crudo
-        debugElement.textContent = JSON.stringify(eventData, null, 2);
+        // Mostramos el objeto recibido para futuras depuraciones si fuera necesario
+        // debugElement.textContent = JSON.stringify(eventData, null, 2);
 
-        // AHORA, usamos la estructura que TÚ encontraste en la llamada de red.
-        // Puede que el evento no sea 'context-set', sino directamente el payload.
-        // Buscamos el PDV ID en la ruta correcta: eventData.meta.contact.custom_attributes.id_pdv
-        const pdvId = eventData?.meta?.contact?.custom_attributes?.id_pdv;
+        // v1.4: Ruta corregida según los datos recibidos que tú encontraste
+        const pdvId = eventData?.sender?.contact?.custom_attributes?.id_pdv;
 
         if (pdvId) {
-          titleElement.textContent = `Dashboard PDV v1.3 - Buscando datos para PDV: ${pdvId}...`;
+          titleElement.textContent = `Buscando datos para PDV: ${pdvId}...`;
           fetchPdvData(pdvId);
-        } else {
-          // Si no encontramos el ID en la ruta esperada, lo notificamos
-           titleElement.textContent = "Dashboard PDV v1.3 - Objeto recibido, pero sin 'id_pdv' en la ruta esperada.";
         }
+        // Ya no necesitamos un 'else', si no hay pdvId, simplemente no hará nada.
       }
 
       window.addEventListener('message', handleWindowMessage);
@@ -65,16 +61,14 @@
             const url = `https://n8n.vozipyme.es/webhook/dashboard_chatwoot_pdv?pdv_id=${pdvId}`;
             const response = await fetch(url);
             if (!response.ok) {
-              titleElement.textContent = `Dashboard PDV v1.3 - Error al obtener datos (código: ${response.status})`;
+              titleElement.textContent = `Error desde n8n (código: ${response.status})`;
               throw new Error(`Error HTTP: ${response.status}`);
             }
             const data = await response.json();
             updateUI(data);
           } catch (error) {
             console.error("Error cargando datos del PDV:", error);
-            if (titleElement.textContent.includes("Buscando")) {
-              titleElement.textContent = "Dashboard PDV v1.3 - Fallo al cargar los datos desde n8n";
-            }
+            titleElement.textContent = "Fallo al cargar los datos desde n8n";
           }
       }
 
@@ -82,7 +76,7 @@
           const currentMonth = new Date().toISOString().slice(0, 7).replace('-', '');
           const record = data.find(row => row.Mes === currentMonth);
           if (!record) {
-            titleElement.textContent = "Dashboard PDV v1.3 - Sin datos para el mes actual";
+            titleElement.textContent = "Sin datos para el mes actual en n8n";
             return;
           }
           const elementMapping = { "fibra": record["Fibras brutas"], "movact": record["Mov activos"], "movvuelo": record["Mov en vuelo"], "gratis": record["% Linea gratis"], "dias": record["Días instalación"] };
@@ -92,7 +86,7 @@
               element.textContent = elementMapping[id] ?? '-';
             }
           }
-          titleElement.textContent = `Dashboard PDV v1.3 - Totales para ${currentMonth}`;
+          titleElement.textContent = `Totales del PDV para ${currentMonth}`;
       }
     });
   </script>
