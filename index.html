@@ -12,7 +12,7 @@
       color: #333;
     }
     h2 {
-      margin-bottom: 20px;
+      margin-bottom: 10px;
       font-size: 18px;
     }
     .card-container {
@@ -37,11 +37,25 @@
       font-weight: bold;
       margin-top: 5px;
     }
+    /* Estilo para el panel de depuración */
+    #debug-info {
+        font-family: monospace;
+        color: #dc3545; /* Rojo */
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        padding: 10px;
+        border-radius: 5px;
+        margin-top: 0;
+        margin-bottom: 20px;
+        text-align: left;
+        word-wrap: break-word;
+    }
   </style>
 </head>
 <body>
 
   <h2 id="title">Cargando datos del PDV...</h2>
+  <p id="debug-info">Esperando contexto de Chatwoot...</p>
   
   <div class="card-container">
       <div class="card">
@@ -69,78 +83,30 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
 
-      // --- FUNCIONES DEL DASHBOARD ---
+      // --- FUNCIONES DEL DASHBOARD (sin cambios) ---
+      function getCurrentMonthId() { /* ... */ }
+      function updateUI(data) { /* ... */ }
+      async function fetchPdvData(pdvId) { /* ... */ }
 
-      function getCurrentMonthId() {
-        const now = new Date();
-        const year = now.getFullYear();
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        return `${year}${month}`;
-      }
-
-      function updateUI(data) {
-        const currentMonth = getCurrentMonthId();
-        const record = data.find(row => row.Mes === currentMonth);
-        const titleElement = document.getElementById("title");
-
-        if (!record) {
-          titleElement.textContent = "Sin datos para el mes actual";
-          return;
-        }
-
-        const elementMapping = {
-          "fibra": record["Fibras brutas"],
-          "movact": record["Mov activos"],
-          "movvuelo": record["Mov en vuelo"],
-          "gratis": record["% Linea gratis"],
-          "dias": record["Días instalación"]
-        };
-
-        for (const id in elementMapping) {
-          const element = document.getElementById(id);
-          if (element) {
-            element.textContent = elementMapping[id] ?? '-';
-          }
-        }
-        titleElement.textContent = `Totales para ${currentMonth}`;
-      }
-
-      async function fetchPdvData(pdvId) {
-        const titleElement = document.getElementById("title");
-        try {
-          const url = `https://n8n.vozipyme.es/webhook/dashboard_chatwoot_pdv?pdv_id=${pdvId}`;
-          const response = await fetch(url);
-          
-          if (!response.ok) {
-            titleElement.textContent = `Error al obtener datos (código: ${response.status})`;
-            throw new Error(`Error HTTP: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          updateUI(data);
-
-        } catch (error) {
-          console.error("Error cargando datos del PDV:", error);
-          if (titleElement.textContent.startsWith("Cargando")) {
-             titleElement.textContent = "Fallo al cargar los datos";
-          }
-        }
-      }
-
-      // --- COMUNICACIÓN CON CHATWOOT ---
-
+      // --- COMUNICACIÓN CON CHATWOOT (CON CAMBIOS PARA DEPURACIÓN) ---
       function handleContextUpdate(event) {
         if (event.source === window.parent && event.data.event === 'chatwoot-dashboard-app:context-set') {
           const context = event.data.data;
-          // ✅ ¡AQUÍ ESTÁ EL CAMBIO! Usamos la llave 'id_pdv' en minúsculas.
-          const pdvId = context?.contact?.custom_attributes?.id_pdv;
           const titleElement = document.getElementById("title");
+          // --- Cambios para depuración ---
+          const debugElement = document.getElementById("debug-info");
+          const customAttributes = context?.contact?.custom_attributes;
+          const pdvId = customAttributes?.id_pdv;
 
           if (pdvId) {
+            debugElement.textContent = `ID de PDV encontrado: "${pdvId}"`;
             titleElement.textContent = `Buscando datos para PDV: ${pdvId}...`;
             fetchPdvData(pdvId);
           } else {
             titleElement.textContent = "El contacto no tiene un ID de PDV asignado";
+            // Mostramos todos los atributos que SÍ hemos recibido
+            const receivedAttrs = JSON.stringify(customAttributes, null, 2);
+            debugElement.textContent = `ID de PDV no encontrado. Atributos recibidos: ${receivedAttrs}`;
           }
         }
       }
@@ -148,6 +114,10 @@
       window.addEventListener('message', handleContextUpdate);
       window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
       
+      // --- CÓDIGO DE FUNCIONES MINIMIZADO PARA CLARIDAD ---
+      function getCurrentMonthId() { const now = new Date(); const year = now.getFullYear(); const month = String(now.getMonth() + 1).padStart(2, '0'); return `${year}${month}`; }
+      function updateUI(data) { const currentMonth = getCurrentMonthId(); const record = data.find(row => row.Mes === currentMonth); const titleElement = document.getElementById("title"); if (!record) { titleElement.textContent = "Sin datos para el mes actual"; return; } const elementMapping = { "fibra": record["Fibras brutas"], "movact": record["Mov activos"], "movvuelo": record["Mov en vuelo"], "gratis": record["% Linea gratis"], "dias": record["Días instalación"] }; for (const id in elementMapping) { const element = document.getElementById(id); if (element) { element.textContent = elementMapping[id] ?? '-'; } } titleElement.textContent = `Totales para ${currentMonth}`; }
+      async function fetchPdvData(pdvId) { const titleElement = document.getElementById("title"); try { const url = `https://n8n.vozipyme.es/webhook/dashboard_chatwoot_pdv?pdv_id=${pdvId}`; const response = await fetch(url); if (!response.ok) { titleElement.textContent = `Error al obtener datos (código: ${response.status})`; throw new Error(`Error HTTP: ${response.status}`); } const data = await response.json(); updateUI(data); } catch (error) { console.error("Error cargando datos del PDV:", error); if (titleElement.textContent.startsWith("Buscando")) { titleElement.textContent = "Fallo al cargar los datos"; } } }
     });
   </script>
 </body>
