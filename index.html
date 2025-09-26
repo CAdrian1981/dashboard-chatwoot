@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard PDV v2.9</title>
+  <title>Dashboard PDV v3.0</title>
   <!-- Librería para Gráficos -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
@@ -10,7 +10,9 @@
   <style>
     /* Estilos Generales */
     :root {
-      --primary-color: #007bff;
+      --fibra-bruta-color: #0d6efd;
+      --mov-activos-color: #6f42c1;
+      --proyeccion-color: #fd7e14;
       --secondary-color: #6c757d;
       --background-color: #f8f9fa;
       --card-bg-color: #ffffff;
@@ -19,7 +21,6 @@
       --rappel-oro-color: #17a2b8;
       --rappel-platino-color: #ffc107;
       --rappel-diamante-color: #dc3545;
-      --proyeccion-color: #fd7e14;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -79,14 +80,14 @@
     }
     .card {
       background-color: var(--card-bg-color);
-      padding: 8px; /* Padding reducido para menor altura */
+      padding: 8px;
       border-radius: 12px;
       text-align: center;
       box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
       display: flex;
       flex-direction: column;
       justify-content: center;
-      min-height: 65px; /* Altura mínima para consistencia */
+      min-height: 65px;
     }
     .card-title {
       font-size: 12px;
@@ -95,9 +96,9 @@
       margin-bottom: 4px;
     }
     .card-value {
-      font-size: 22px; /* Tamaño de números reducido */
+      font-size: 22px;
       font-weight: 700;
-      color: var(--primary-color);
+      color: var(--fibra-bruta-color);
     }
 
     /* Contenedor de Gráfico y Leyenda Rappel */
@@ -117,7 +118,7 @@
     }
     .rappel-legend-container {
         flex-shrink: 0;
-        width: 130px;
+        width: 180px; /* Ancho aumentado para nuevo texto */
         background-color: var(--card-bg-color);
         padding: 15px;
         border-radius: 12px;
@@ -125,7 +126,7 @@
         display: flex;
         flex-direction: column;
         justify-content: center;
-        gap: 12px;
+        gap: 8px;
     }
     .rappel-legend-container h6 {
         margin: 0 0 5px 0;
@@ -134,10 +135,18 @@
         font-weight: 600;
         font-size: 14px;
     }
+     .rappel-legend-container .sub-title {
+        font-weight: 600;
+        font-size: 12px;
+        color: #555;
+        margin-top: 5px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 3px;
+    }
     .rappel-item {
         display: flex;
         align-items: center;
-        font-size: 12px;
+        font-size: 11px; /* Letra reducida */
     }
     .rappel-color-box {
         width: 12px;
@@ -175,7 +184,7 @@
   </style>
 </head>
 <body>
-  <div class="version-tag">v2.9</div>
+  <div class="version-tag">v3.0</div>
   <div class="dashboard-container">
     <!-- Sección de Info de Contacto -->
     <div class="contact-info" id="contact-info-container">
@@ -287,19 +296,23 @@ window.addEventListener('load', () => {
         document.getElementById('dias').textContent = record["Días instalación"] ?? '-';
     }
 
-    function renderRappelLegend(rappels) {
+    function renderRappelLegend(legendData) {
         const legendContainer = document.getElementById('rappel-legend');
         const colors = ['var(--rappel-plata-color)', 'var(--rappel-oro-color)', 'var(--rappel-platino-color)', 'var(--rappel-diamante-color)'];
         
         let legendHTML = '<h6>Objetivos Rappel</h6>';
-        let index = 0;
-        for (const label in rappels) {
-            legendHTML += `
-                <div class="rappel-item">
-                    <div class="rappel-color-box" style="background-color: ${colors[index]};"></div>
-                    <span>${label}</span>
-                </div>`;
-            index++;
+        
+        for (const [title, items] of Object.entries(legendData)) {
+            legendHTML += `<div class="sub-title">${title}</div>`;
+            let index = 0;
+            for (const label in items) {
+                legendHTML += `
+                    <div class="rappel-item">
+                        <div class="rappel-color-box" style="background-color: ${colors[index]};"></div>
+                        <span>${label}</span>
+                    </div>`;
+                index++;
+            }
         }
         legendContainer.innerHTML = legendHTML;
     }
@@ -322,14 +335,19 @@ window.addEventListener('load', () => {
             return fibraBruta;
         });
         
-        const rappels = {
-            'Plata (3)': 3,
-            'Oro (9)': 9,
-            'Platino (20)': 20,
-            'Diamante (36)': 36
+        const rappelsMensual = {
+            'Plata (3)': 3, 'Oro (9)': 9, 'Platino (20)': 20, 'Diamante (36)': 36
+        };
+        const rappelLegendData = {
+            'Mensual': {
+                'Plata (3) 150€+20€/F': 3, 'Oro (9) 350€+35€/F': 9, 'Platino (20) 600€+45€/F': 20, 'Diamante (36) 800€+50€/F': 36
+            },
+            'Bimensual': {
+                'Plata (6) 10€/F': 6, 'Oro (18) 20€/F': 18, 'Platino (40) 30€/F': 40, 'Diamante (72) 40€/F': 72
+            }
         };
         
-        renderRappelLegend(rappels);
+        renderRappelLegend(rappelLegendData);
 
         if (historicalChart) {
             historicalChart.destroy();
@@ -340,8 +358,8 @@ window.addEventListener('load', () => {
             data: {
                 labels: labels,
                 datasets: [
-                    { label: 'Fibra Bruta', data: fibraData, borderColor: 'var(--primary-color)', tension: 0.1, fill: false, order: 1 },
-                    { label: 'Mov Activos', data: movActivosData, borderColor: 'var(--rappel-plata-color)', tension: 0.1, fill: false, order: 2 },
+                    { label: 'Fibra Bruta', data: fibraData, borderColor: 'var(--fibra-bruta-color)', tension: 0.1, fill: false, order: 1, borderWidth: 2 },
+                    { label: 'Mov Activos', data: movActivosData, borderColor: 'var(--mov-activos-color)', tension: 0.1, fill: false, order: 2 },
                     { label: 'Proyección Fibra', data: proyeccionData, borderColor: 'var(--proyeccion-color)', tension: 0.1, borderDash: [5, 5], fill: false, order: 3 }
                 ]
             },
@@ -352,13 +370,13 @@ window.addEventListener('load', () => {
                     legend: { display: false },
                     title: { display: false },
                     annotation: {
-                        annotations: Object.entries(rappels).map(([label, value], index) => ({
+                        annotations: Object.entries(rappelsMensual).map(([label, value], index) => ({
                             type: 'line',
                             yMin: value,
                             yMax: value,
                             borderColor: ['var(--rappel-plata-color)', 'var(--rappel-oro-color)', 'var(--rappel-platino-color)', 'var(--rappel-diamante-color)'][index],
-                            borderWidth: 1,
-                            borderDash: [10, 5]
+                            borderWidth: 1.5,
+                            borderDash: [6, 6]
                         }))
                     }
                 },
