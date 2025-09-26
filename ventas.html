@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Visor de Ventas v2.0</title>
+  <title>Visor de Ventas v2.1</title>
   <style>
     :root {
       --primary-color: #007bff;
@@ -242,7 +242,6 @@ window.addEventListener('load', () => {
     }
     
     function applyFiltersAndSort(sortKey = null, sortOrder = 'desc') {
-        // 1. Recoger filtros activos
         activeFilters = {};
         document.querySelectorAll('.filter-input').forEach(input => {
             const key = input.dataset.key;
@@ -254,10 +253,9 @@ window.addEventListener('load', () => {
             }
         });
 
-        // 2. Filtrar datos
         let filteredData = salesDataCache.filter(row => {
             return Object.entries(activeFilters).every(([key, value]) => {
-                if (typeof value === 'object') { // Rango de fechas
+                if (typeof value === 'object') { 
                     const rowDate = new Date(String(row[key]).replace(/\"/g, ''));
                     if (isNaN(rowDate)) return true;
                     const from = value['date-from'] ? new Date(value['date-from']) : null;
@@ -266,11 +264,10 @@ window.addEventListener('load', () => {
                     if (to && rowDate > to) return false;
                     return true;
                 }
-                return String(row[key]) === String(value); // Filtro de select
+                return String(row[key]) === String(value);
             });
         });
 
-        // 3. Ordenar datos filtrados
         if (sortKey) {
             filteredData.sort((a, b) => {
                 const valA = a[sortKey], valB = b[sortKey];
@@ -280,25 +277,28 @@ window.addEventListener('load', () => {
             });
         }
         
-        // 4. Actualizar opciones de los otros filtros (cascada)
         updateFilterOptions(filteredData);
-        // 5. Renderizar el cuerpo de la tabla
         renderTableBody(filteredData);
     }
     
+    // CORRECCIÓN: Esta es la función que ha sido modificada
     function renderTableBody(data) {
         const tableBody = document.getElementById('table-body');
-        tableBody.innerHTML = data.map(row => {
-            const cells = Object.values(row).map(cell => `<td>${String(cell || '-').replace(/\"/g, '')}</td>`).join('');
+        tableBody.innerHTML = ''; // Limpiar la tabla antes de añadir nuevas filas
+
+        data.forEach(row => {
             const rowEl = document.createElement('tr');
-            rowEl.innerHTML = cells;
+            rowEl.innerHTML = Object.values(row).map(cell => `<td>${String(cell || '-').replace(/\"/g, '')}</td>`).join('');
+            
+            // Adjuntar el evento de clic directamente al elemento del DOM
             rowEl.addEventListener('click', () => {
                 showDetails(row);
                 document.querySelectorAll('#sales-table tbody tr').forEach(tr => tr.classList.remove('selected'));
                 rowEl.classList.add('selected');
             });
-            return rowEl.outerHTML;
-        }).join('');
+
+            tableBody.appendChild(rowEl); // Añadir la fila con el evento a la tabla
+        });
     }
 
     function showDetails(row) {
