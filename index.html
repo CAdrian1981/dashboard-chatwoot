@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard PDV v2.1</title>
+  <title>Dashboard PDV v2.3</title>
   <!-- Librería para Gráficos -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
@@ -32,6 +32,12 @@
       display: flex;
       flex-direction: column;
       gap: 15px;
+    }
+    .dashboard-header {
+      font-size: 18px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: -5px;
     }
 
     /* Sección de Datos del Contacto */
@@ -131,6 +137,8 @@
 <body>
 
   <div class="dashboard-container">
+    <div id="dashboard-header" class="dashboard-header">Dashboard PDV v2.3</div>
+
     <!-- Sección de Info de Contacto -->
     <div class="contact-info" id="contact-info-container">
       <!-- Los datos se inyectarán aquí desde JS -->
@@ -179,6 +187,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (pdvId) {
                 hasProcessed = true;
+                document.getElementById('dashboard-header').textContent += ` - ${pdvId}`;
                 updateContactInfo(parsedData.data.contact);
                 fetchPdvData(pdvId);
             }
@@ -230,7 +239,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const record = data.find(row => row.Mes === currentMonthId);
         if (!record) return;
 
-        // Cálculo de Proyección
         const fibraBruta = parseFloat(record["Fibras brutas"]) || 0;
         const today = new Date();
         const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
@@ -308,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 scales: { y: { beginAtZero: true } }
             },
-            // CORRECCIÓN: El array de plugins va aquí, dentro del objeto de configuración.
+            // CORRECCIÓN: El registro del plugin se hace a nivel de instancia del gráfico
             plugins: [ChartjsPluginAnnotation]
         });
     }
@@ -317,7 +325,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const tableBody = document.getElementById('table-body');
         const tableHeader = document.getElementById('table-header');
         
-        // CORRECCIÓN: Manejar el caso en que no haya datos para mostrar.
         if (!data || data.length === 0) {
             tableHeader.innerHTML = '';
             tableBody.innerHTML = `<tr><td colspan="100%" style="text-align: center;">No hay datos históricos disponibles.</td></tr>`;
@@ -328,13 +335,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (sortKey) {
             sortedData.sort((a, b) => {
-                if (a[sortKey] < b[sortKey]) return sortOrder === 'asc' ? -1 : 1;
-                if (a[sortKey] > b[sortKey]) return sortOrder === 'asc' ? 1 : -1;
-                return 0;
+                const valA = a[sortKey];
+                const valB = b[sortKey];
+
+                if (typeof valA === 'string' && typeof valB === 'string') {
+                    return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+                }
+                return sortOrder === 'asc' ? valA - valB : valB - valA;
             });
         }
         
-        if (tableHeader.innerHTML === '') {
+        if (tableHeader.innerHTML === '' || tableHeader.dataset.rendered !== 'true') {
+            tableHeader.dataset.rendered = 'true';
             const headers = Object.keys(data[0]);
             tableHeader.innerHTML = headers.map(key => `<th data-key="${key}">${key} <span></span></th>`).join('');
             document.querySelectorAll('#table-header th').forEach(th => {
@@ -343,9 +355,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const currentOrder = th.dataset.order || 'asc';
                     const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
                     
-                    document.querySelectorAll('#table-header th span').forEach(span => span.textContent = '');
+                    document.querySelectorAll('#table-header th').forEach(innerTh => {
+                        innerTh.dataset.order = '';
+                        innerTh.querySelector('span').textContent = '';
+                    });
+
                     th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼';
-                    
                     th.dataset.order = newOrder;
                     renderTable(n8nDataCache, key, newOrder);
                 });
@@ -366,7 +381,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const pdvMatch = row['ID PDV'].toLowerCase().includes(pdvFilter);
             return mesMatch && pdvMatch;
         });
-        renderTable(filteredData);
+        renderTable(filteredData, null);
     }
     document.getElementById('filter-mes').addEventListener('input', applyFilters);
     document.getElementById('filter-pdv').addEventListener('input', applyFilters);
