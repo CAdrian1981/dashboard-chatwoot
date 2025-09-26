@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Visor de Ventas v2.3</title>
+  <title>Visor de Ventas v2.4</title>
   <style>
     :root {
       --primary-color: #007bff;
@@ -162,11 +162,32 @@ window.addEventListener('load', () => {
     let salesDataCache = [];
     let activeFilters = {};
 
-    function handleWindowMessage(event) { /* ... (sin cambios) */ }
+    function handleWindowMessage(event) {
+        if (event.source !== window.parent || hasProcessed) return;
+        try {
+            const parsedData = JSON.parse(event.data);
+            const pdvId = parsedData?.data?.contact?.custom_attributes?.id_pdv;
+            if (pdvId) {
+                hasProcessed = true;
+                fetchVentasData(pdvId);
+            }
+        } catch (error) {}
+    }
     window.addEventListener('message', handleWindowMessage);
     window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
 
-    async function fetchVentasData(pdvId) { /* ... (sin cambios) */ }
+    async function fetchVentasData(pdvId) {
+        try {
+            const url = `https://n8n.vozipyme.es/webhook/4abcfbd2-ec57-471b-b580-927938988ee9?id_pdv=${pdvId}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+            const data = await response.json();
+            salesDataCache = data;
+            initializeTable(data);
+        } catch (error) {
+            document.getElementById('table-body').innerHTML = `<tr><td colspan="100%" style="text-align: center; color: red;">Error al cargar datos.</td></tr>`;
+        }
+    }
 
     function initializeTable(data) {
         if (!data || data.length === 0) {
@@ -191,33 +212,125 @@ window.addEventListener('load', () => {
         });
     }
 
-    function renderTableHeaders(headers) { /* ... (sin cambios) */ }
-    function renderFilterRow(headers, data) { /* ... (sin cambios) */ }
-    function updateFilterOptions(data) { /* ... (sin cambios) */ }
-    function applyFiltersAndSort(sortKey = null, sortOrder = 'desc') { /* ... (sin cambios) */ }
+    function renderTableHeaders(headers) {
+        const headerRow = document.getElementById('table-header');
+        headerRow.innerHTML = headers.map(key => `<th data-key="${key}">${key.replace(/_/g, ' ')} <span></span></th>`).join('');
+        headerRow.querySelectorAll('th').forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.dataset.key;
+                const currentOrder = th.dataset.order || 'desc';
+                const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+                headerRow.querySelectorAll('th').forEach(innerTh => {
+                    innerTh.dataset.order = '';
+                    innerTh.querySelector('span').textContent = '';
+                });
+                th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼';
+                th.dataset.order = newOrder;
+                applyFiltersAndSort(key, newOrder);
+            });
+        });
+    }
     
-    // CORRECCIÓN: Lógica de clic actualizada
+    function renderFilterRow(headers, data) {
+        const filterRow = document.getElementById('filter-row');
+        filterRow.innerHTML = headers.map(key => {
+            if (key.toLowerCase().includes('fecha')) {
+                return `<th><input type="date" class="filter-input" data-key="${key}" data-type="date-from"><input type="date" class="filter-input" data-key="${key}" data-type="date-to"></th>`;
+            } else {
+                return `<th><select class="filter-input" data-key="${key}" multiple></select></th>`;
+            }
+        }).join('');
+        updateFilterOptions(data);
+        document.querySelectorAll('.filter-input').forEach(input => {
+            input.addEventListener('change', () => applyFiltersAndSort());
+        });
+    }
+    
+    function updateFilterOptions(data) {
+        const headers = Object.keys(salesDataCache[0] || {});
+        headers.forEach(key => {
+            if (!key.toLowerCase().includes('fecha')) {
+                const select = document.querySelector(`.filter-input[data-key="${key}"]`);
+                const currentSelections = activeFilters[key] || [];
+                const options = [...new Set(data.map(item => item[key]))].sort();
+                select.innerHTML = '';
+                options.forEach(option => {
+                    if(option) {
+                        const optionEl = document.createElement('option');
+                        optionEl.value = option;
+                        optionEl.textContent = option;
+                        if (currentSelections.includes(option)) {
+                            optionEl.selected = true;
+                        }
+                        select.appendChild(optionEl);
+                    }
+                });
+            }
+        });
+    }
+    
+    function applyFiltersAndSort(sortKey = null, sortOrder = 'desc') {
+        activeFilters = {};
+        document.querySelectorAll('.filter-input').forEach(input => {
+            const key = input.dataset.key;
+            if (input.type.startsWith('date')) {
+                if (!activeFilters[key]) activeFilters[key] = {};
+                activeFilters[key][input.dataset.type] = input.value;
+            } else {
+                const selectedValues = Array.from(input.selectedOptions).map(opt => opt.value);
+                if (selectedValues.length > 0) {
+                    activeFilters[key] = selectedValues;
+                }
+            }
+        });
+        
+        let filteredData = salesDataCache.filter(row => {
+            return Object.entries(activeFilters).every(([key, value]) => {
+                if (Array.isArray(value)) {
+                    return value.includes(String(row[key]));
+                }
+                if (typeof value === 'object') {
+                    const rowDate = new Date(String(row[key]).replace(/\"/g, ''));
+                    if (isNaN(rowDate)) return true;
+                    const from = value['date-from'] ? new Date(value['date-from']) : null;
+                    const to = value['date-to'] ? new Date(value['date-to']) : null;
+                    if (from && rowDate < from) return false;
+                    if (to && rowDate > to) return false;
+                    return true;
+                }
+                return true;
+            });
+        });
+
+        if (sortKey) {
+            filteredData.sort((a, b) => {
+                const valA = a[sortKey], valB = b[sortKey];
+                if (String(valA) < String(valB)) return sortOrder === 'asc' ? -1 : 1;
+                if (String(valA) > String(valB)) return sortOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        
+        updateFilterOptions(filteredData);
+        renderTableBody(filteredData);
+    }
+    
     function renderTableBody(data) {
         const tableBody = document.getElementById('table-body');
-        tableBody.innerHTML = ''; 
-
+        tableBody.innerHTML = '';
         data.forEach(row => {
             const rowEl = document.createElement('tr');
             rowEl.innerHTML = Object.values(row).map(cell => `<td>${String(cell || '-').replace(/\"/g, '')}</td>`).join('');
-            
             rowEl.addEventListener('click', () => {
                 if (rowEl.classList.contains('selected')) {
-                    // Si ya está seleccionada, deseleccionar y limpiar detalles
                     rowEl.classList.remove('selected');
                     clearDetails();
                 } else {
-                    // Si no, seleccionar y mostrar detalles
                     document.querySelectorAll('#sales-table tbody tr').forEach(tr => tr.classList.remove('selected'));
                     rowEl.classList.add('selected');
                     showDetails(row);
                 }
             });
-
             tableBody.appendChild(rowEl);
         });
     }
@@ -232,22 +345,12 @@ window.addEventListener('load', () => {
         `).join('');
     }
 
-    // Nueva función para limpiar la vista de detalles
     function clearDetails() {
         const detailsContainer = document.getElementById('details-container');
         detailsContainer.innerHTML = '<p class="details-placeholder">Selecciona una venta de la tabla para ver sus detalles</p>';
     }
-
-    // --- Definiciones completas de funciones sin cambios ---
-    function handleWindowMessage(event) { if (event.source !== window.parent || hasProcessed) return; try { const parsedData = JSON.parse(event.data); const pdvId = parsedData?.data?.contact?.custom_attributes?.id_pdv; if (pdvId) { hasProcessed = true; fetchVentasData(pdvId); } } catch (error) {} }
-    async function fetchVentasData(pdvId) { try { const url = `https://n8n.vozipyme.es/webhook/4abcfbd2-ec57-471b-b580-927938988ee9?id_pdv=${pdvId}`; const response = await fetch(url); if (!response.ok) throw new Error(`HTTP Error: ${response.status}`); const data = await response.json(); salesDataCache = data; initializeTable(data); } catch (error) { document.getElementById('table-body').innerHTML = `<tr><td colspan="100%" style="text-align: center; color: red;">Error al cargar datos.</td></tr>`; } }
-    function renderTableHeaders(headers) { const headerRow = document.getElementById('table-header'); headerRow.innerHTML = headers.map(key => `<th data-key="${key}">${key.replace(/_/g, ' ')} <span></span></th>`).join(''); headerRow.querySelectorAll('th').forEach(th => { th.addEventListener('click', () => { const key = th.dataset.key; const currentOrder = th.dataset.order || 'desc'; const newOrder = currentOrder === 'asc' ? 'desc' : 'asc'; headerRow.querySelectorAll('th').forEach(innerTh => { innerTh.dataset.order = ''; innerTh.querySelector('span').textContent = ''; }); th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼'; th.dataset.order = newOrder; applyFiltersAndSort(key, newOrder); }); }); }
-    function renderFilterRow(headers, data) { const filterRow = document.getElementById('filter-row'); filterRow.innerHTML = headers.map(key => { if (key.toLowerCase().includes('fecha')) { return `<th><input type="date" class="filter-input" data-key="${key}" data-type="date-from"><input type="date" class="filter-input" data-key="${key}" data-type="date-to"></th>`; } else { return `<th><select class="filter-input" data-key="${key}" multiple></select></th>`; } }).join(''); updateFilterOptions(data); document.querySelectorAll('.filter-input').forEach(input => { input.addEventListener('change', () => applyFiltersAndSort()); }); }
-    function updateFilterOptions(data) { const headers = Object.keys(salesDataCache[0] || {}); headers.forEach(key => { if (!key.toLowerCase().includes('fecha')) { const select = document.querySelector(`.filter-input[data-key="${key}"]`); const currentSelections = activeFilters[key] || []; const options = [...new Set(data.map(item => item[key]))].sort(); select.innerHTML = ''; options.forEach(option => { if(option) { const optionEl = document.createElement('option'); optionEl.value = option; optionEl.textContent = option; if (currentSelections.includes(option)) { optionEl.selected = true; } select.appendChild(optionEl); } }); } }); }
-    function applyFiltersAndSort(sortKey = null, sortOrder = 'desc') { activeFilters = {}; document.querySelectorAll('.filter-input').forEach(input => { const key = input.dataset.key; if (input.type.startsWith('date')) { if (!activeFilters[key]) activeFilters[key] = {}; activeFilters[key][input.dataset.type] = input.value; } else { const selectedValues = Array.from(input.selectedOptions).map(opt => opt.value); if (selectedValues.length > 0) { activeFilters[key] = selectedValues; } } }); let filteredData = salesDataCache.filter(row => { return Object.entries(activeFilters).every(([key, value]) => { if (Array.isArray(value)) { return value.includes(String(row[key])); } if (typeof value === 'object') { const rowDate = new Date(String(row[key]).replace(/\"/g, '')); if (isNaN(rowDate)) return true; const from = value['date-from'] ? new Date(value['date-from']) : null; const to = value['date-to'] ? new Date(value['date-to']) : null; if (from && rowDate < from) return false; if (to && rowDate > to) return false; return true; } return true; }); }); if (sortKey) { filteredData.sort((a, b) => { const valA = a[sortKey], valB = b[sortKey]; if (String(valA) < String(valB)) return sortOrder === 'asc' ? -1 : 1; if (String(valA) > String(valB)) return sortOrder === 'asc' ? 1 : -1; return 0; }); } updateFilterOptions(filteredData); renderTableBody(filteredData); }
 });
 </script>
 
 </body>
 </html>
-
