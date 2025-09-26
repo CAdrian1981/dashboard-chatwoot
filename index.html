@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Dashboard PDV v2.0</title>
+  <title>Dashboard PDV v2.1</title>
   <!-- Librería para Gráficos -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
@@ -251,20 +251,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const fibraData = data.map(d => d["Fibras brutas"]).reverse();
         const movActivosData = data.map(d => d["Mov activos"]).reverse();
         
-        // Calcular proyección para todos los meses
         const proyeccionData = data.map(d => {
             const fibraBruta = parseFloat(d["Fibras brutas"]) || 0;
             const year = parseInt(d.Mes.substring(0, 4));
             const month = parseInt(d.Mes.substring(4, 6));
             const daysInMonth = new Date(year, month, 0).getDate();
-            // Para meses pasados, la proyección es igual al valor real.
-            // Para el mes actual, se calcula.
             if (`${year}${String(month).padStart(2, '0')}` === new Date().toISOString().slice(0,7).replace('-','')) {
                  const dayOfMonth = new Date().getDate();
                  return (fibraBruta / dayOfMonth) * daysInMonth;
             }
             return fibraBruta;
-
         }).reverse();
         
         const rappels = {
@@ -312,6 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 },
                 scales: { y: { beginAtZero: true } }
             },
+            // CORRECCIÓN: El array de plugins va aquí, dentro del objeto de configuración.
             plugins: [ChartjsPluginAnnotation]
         });
     }
@@ -320,12 +317,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const tableBody = document.getElementById('table-body');
         const tableHeader = document.getElementById('table-header');
         
-        if (!data || data.length === 0) return;
+        // CORRECCIÓN: Manejar el caso en que no haya datos para mostrar.
+        if (!data || data.length === 0) {
+            tableHeader.innerHTML = '';
+            tableBody.innerHTML = `<tr><td colspan="100%" style="text-align: center;">No hay datos históricos disponibles.</td></tr>`;
+            return;
+        }
 
-        // Clonar datos para no mutar el caché
         let sortedData = [...data];
 
-        // Ordenar
         if (sortKey) {
             sortedData.sort((a, b) => {
                 if (a[sortKey] < b[sortKey]) return sortOrder === 'asc' ? -1 : 1;
@@ -334,29 +334,29 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
         
-        // Crear cabecera si no existe
         if (tableHeader.innerHTML === '') {
             const headers = Object.keys(data[0]);
-            tableHeader.innerHTML = headers.map(key => `<th data-key="${key}">${key}</th>`).join('');
-            // Añadir listeners de ordenación a las cabeceras
+            tableHeader.innerHTML = headers.map(key => `<th data-key="${key}">${key} <span></span></th>`).join('');
             document.querySelectorAll('#table-header th').forEach(th => {
                 th.addEventListener('click', () => {
                     const key = th.dataset.key;
                     const currentOrder = th.dataset.order || 'asc';
                     const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+                    
+                    document.querySelectorAll('#table-header th span').forEach(span => span.textContent = '');
+                    th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼';
+                    
                     th.dataset.order = newOrder;
                     renderTable(n8nDataCache, key, newOrder);
                 });
             });
         }
 
-        // Renderizar filas
         tableBody.innerHTML = sortedData.map(row => `
             <tr>${Object.values(row).map(cell => `<td>${cell}</td>`).join('')}</tr>
         `).join('');
     }
 
-    // -- INICIO: LÓGICA DE FILTRADO DE TABLA --
     function applyFilters() {
         const mesFilter = document.getElementById('filter-mes').value.toLowerCase();
         const pdvFilter = document.getElementById('filter-pdv').value.toLowerCase();
