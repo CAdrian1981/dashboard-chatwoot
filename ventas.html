@@ -2,22 +2,15 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Visor de Ventas PDV</title>
+  <title>Visor de Ventas v2.0</title>
   <style>
-    /* Estilos Generales */
     :root {
       --primary-color: #007bff;
-      --secondary-color: #6c757d;
       --background-color: #f8f9fa;
       --card-bg-color: #ffffff;
       --text-color: #333;
+      --border-color: #dee2e6;
       --hover-color: #e9ecef;
-      --status-activo-bg: #d1e7dd;
-      --status-activo-text: #0f5132;
-      --status-baja-bg: #fff3cd;
-      --status-baja-text: #664d03;
-      --status-cancelada-bg: #f8d7da;
-      --status-cancelada-text: #842029;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -28,58 +21,50 @@
       font-size: 14px;
     }
     .container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .card {
       background-color: var(--card-bg-color);
       padding: 20px;
       border-radius: 12px;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      padding-bottom: 15px;
-      border-bottom: 1px solid #dee2e6;
-    }
     .header h1 {
-      margin: 0;
+      margin: 0 0 20px 0;
       font-size: 20px;
-      color: #333;
     }
     
-    /* Contenedor de Resumen */
-    .summary-container {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 15px;
-        margin-bottom: 20px;
+    /* Vista de Detalles */
+    #details-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      padding: 15px;
+      border: 1px dashed var(--border-color);
+      border-radius: 8px;
+      min-height: 50px;
+      align-content: flex-start;
     }
-    .summary-card {
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 8px;
-        text-align: center;
+    .details-placeholder {
+        color: #6c757d;
+        align-self: center;
+        justify-self: center;
+        grid-column: 1 / -1;
     }
-    .summary-card-title {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--secondary-color);
-        margin-bottom: 8px;
+    .detail-item {
+      font-size: 13px;
     }
-    .summary-card-value {
-        font-size: 28px;
-        font-weight: 700;
-        color: var(--primary-color);
+    .detail-item-label {
+      font-weight: 600;
+      color: #6c757d;
+      font-size: 11px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
     }
 
-    .filter-container input {
-      width: 100%;
-      padding: 10px 15px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 14px;
-      margin-bottom: 20px;
-    }
+    /* Tabla y Filtros */
     .table-wrapper {
       overflow-x: auto;
     }
@@ -91,46 +76,60 @@
     #sales-table th, #sales-table td {
       padding: 12px 15px;
       text-align: left;
-      border-bottom: 1px solid #dee2e6;
+      border-bottom: 1px solid var(--border-color);
       white-space: nowrap;
     }
-    #sales-table th {
+    #sales-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    #sales-table .header-row th {
       background-color: #f8f9fa;
       font-weight: 600;
       cursor: pointer;
       user-select: none;
     }
-    #sales-table th:hover { background-color: #e9ecef; }
-    #sales-table tbody tr:hover { background-color: var(--hover-color); }
-    .status {
-      padding: 4px 10px;
-      border-radius: 12px;
-      font-weight: 600;
-      font-size: 11px;
-      text-align: center;
+    #sales-table .filter-row th {
+      background-color: #f8f9fa;
+      padding: 8px;
     }
-    .status-activo { background-color: var(--status-activo-bg); color: var(--status-activo-text); }
-    .status-baja { background-color: var(--status-baja-bg); color: var(--status-baja-text); }
-    .status-cancelada { background-color: var(--status-cancelada-bg); color: var(--status-cancelada-text); }
+    .filter-row select, .filter-row input {
+      width: 100%;
+      padding: 6px;
+      font-size: 12px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #sales-table tbody tr {
+      cursor: pointer;
+    }
+    #sales-table tbody tr:hover, #sales-table tbody tr.selected {
+      background-color: var(--hover-color);
+    }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <div class="header">
-      <h1 id="main-title">Historial de Ventas</h1>
+    <div class="card">
+        <div class="header">
+            <h1 id="main-title">Detalles de la Venta</h1>
+        </div>
+        <div id="details-container">
+            <p class="details-placeholder">Selecciona una venta de la tabla para ver sus detalles</p>
+        </div>
     </div>
-    <div id="summary-container" class="summary-container">
-        <!-- Las tarjetas de resumen se insertarán aquí -->
-    </div>
-    <div class="filter-container">
-      <input type="text" id="filter-global" placeholder="Buscar por cliente, estado, servicio...">
-    </div>
-    <div class="table-wrapper">
-      <table id="sales-table">
-        <thead><tr id="table-header"></tr></thead>
-        <tbody id="table-body"></tbody>
-      </table>
+    <div class="card">
+      <div class="table-wrapper">
+        <table id="sales-table">
+          <thead>
+            <tr class="header-row" id="table-header"></tr>
+            <tr class="filter-row" id="filter-row"></tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -138,8 +137,8 @@
 window.addEventListener('load', () => {
     let hasProcessed = false;
     let salesDataCache = [];
+    let activeFilters = {};
 
-    // --- LÓGICA DE COMUNICACIÓN CON CHATWOOT ---
     function handleWindowMessage(event) {
         if (event.source !== window.parent || hasProcessed) return;
         try {
@@ -148,15 +147,13 @@ window.addEventListener('load', () => {
             
             if (pdvId) {
                 hasProcessed = true;
-                document.getElementById('main-title').textContent += ` - PDV ${pdvId}`;
                 fetchVentasData(pdvId);
             }
-        } catch (error) { /* Ignorar mensajes no JSON */ }
+        } catch (error) {}
     }
     window.addEventListener('message', handleWindowMessage);
     window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
 
-    // --- LÓGICA DE OBTENCIÓN Y RENDERIZADO DE DATOS ---
     async function fetchVentasData(pdvId) {
         try {
             const url = `https://n8n.vozipyme.es/webhook/4abcfbd2-ec57-471b-b580-927938988ee9?id_pdv=${pdvId}`;
@@ -165,114 +162,154 @@ window.addEventListener('load', () => {
             const data = await response.json();
             salesDataCache = data;
             
-            renderSummary(data);
-            renderTable(data, 'fecha_venta', 'desc');
+            initializeTable(data);
         } catch (error) {
-            console.error("Error al cargar datos de ventas desde n8n:", error);
-            document.getElementById('table-body').innerHTML = `<tr><td colspan="100%" style="text-align: center; color: red;">Error al cargar los datos de ventas.</td></tr>`;
+            document.getElementById('table-body').innerHTML = `<tr><td colspan="100%" style="text-align: center; color: red;">Error al cargar datos.</td></tr>`;
         }
     }
 
-    function renderSummary(data) {
-        const container = document.getElementById('summary-container');
-        const total = data.length;
-        const activas = data.filter(row => row.estado === 'ACTIVO').length;
-        const bajas = data.filter(row => row.estado === 'BAJA').length;
-        const canceladas = data.filter(row => row.estado === 'CANCELADA').length;
-
-        const summary = {
-            'Total Ventas': total,
-            'Activas': activas,
-            'Bajas': bajas,
-            'Canceladas': canceladas
-        };
-
-        container.innerHTML = Object.entries(summary).map(([label, value]) => `
-            <div class="summary-card">
-                <div class="summary-card-title">${label}</div>
-                <div class="summary-card-value">${value}</div>
-            </div>
-        `).join('');
-    }
-
-    function formatDate(dateString) {
-        if (!dateString) return '-';
-        // Limpiar las comillas dobles extra que vienen de n8n
-        const cleanString = String(dateString).replace(/\"/g, '');
-        const date = new Date(cleanString);
-        if (isNaN(date)) return '-';
-        return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }
-
-    function renderTable(data, sortKey = null, sortOrder = 'asc') {
-        const tableBody = document.getElementById('table-body');
-        const tableHeader = document.getElementById('table-header');
-        
+    function initializeTable(data) {
         if (!data || data.length === 0) {
-            tableHeader.innerHTML = '';
-            tableBody.innerHTML = `<tr><td colspan="100%" style="text-align: center;">No se encontraron ventas para este PDV.</td></tr>`;
+            document.getElementById('table-body').innerHTML = `<tr><td colspan="100%" style="text-align: center;">No se encontraron ventas.</td></tr>`;
             return;
         }
+        
+        const headers = Object.keys(data[0]);
+        renderTableHeaders(headers);
+        renderFilterRow(headers, data);
+        renderTableBody(data);
+    }
 
-        let sortedData = [...data];
+    function renderTableHeaders(headers) {
+        const headerRow = document.getElementById('table-header');
+        headerRow.innerHTML = headers.map(key => `<th data-key="${key}">${key.replace(/_/g, ' ')} <span></span></th>`).join('');
+        
+        headerRow.querySelectorAll('th').forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.dataset.key;
+                const currentOrder = th.dataset.order || 'desc';
+                const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+                
+                headerRow.querySelectorAll('th').forEach(innerTh => {
+                    innerTh.dataset.order = '';
+                    innerTh.querySelector('span').textContent = '';
+                });
 
+                th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼';
+                th.dataset.order = newOrder;
+                applyFiltersAndSort(key, newOrder);
+            });
+        });
+    }
+
+    function renderFilterRow(headers, data) {
+        const filterRow = document.getElementById('filter-row');
+        filterRow.innerHTML = headers.map(key => {
+            if (key.toLowerCase().includes('fecha')) {
+                return `<th>
+                    <input type="date" class="filter-input" data-key="${key}" data-type="date-from" placeholder="Desde">
+                    <input type="date" class="filter-input" data-key="${key}" data-type="date-to" placeholder="Hasta">
+                </th>`;
+            } else {
+                 return `<th><select class="filter-input" data-key="${key}"><option value="">Todo</option></select></th>`;
+            }
+        }).join('');
+        
+        updateFilterOptions(data);
+
+        document.querySelectorAll('.filter-input').forEach(input => {
+            input.addEventListener('change', () => applyFiltersAndSort());
+        });
+    }
+    
+    function updateFilterOptions(data) {
+        const headers = Object.keys(salesDataCache[0] || {});
+        headers.forEach(key => {
+            if (!key.toLowerCase().includes('fecha')) {
+                const select = document.querySelector(`.filter-input[data-key="${key}"]`);
+                const selectedValue = select.value;
+                const options = [...new Set(data.map(item => item[key]))].sort();
+                
+                select.innerHTML = '<option value="">Todo</option>';
+                options.forEach(option => {
+                    if(option) {
+                        const isSelected = option === selectedValue ? 'selected' : '';
+                        select.innerHTML += `<option value="${option}" ${isSelected}>${option}</option>`;
+                    }
+                });
+            }
+        });
+    }
+    
+    function applyFiltersAndSort(sortKey = null, sortOrder = 'desc') {
+        // 1. Recoger filtros activos
+        activeFilters = {};
+        document.querySelectorAll('.filter-input').forEach(input => {
+            const key = input.dataset.key;
+            if (input.type.startsWith('date')) {
+                if (!activeFilters[key]) activeFilters[key] = {};
+                activeFilters[key][input.dataset.type] = input.value;
+            } else {
+                if (input.value) activeFilters[key] = input.value;
+            }
+        });
+
+        // 2. Filtrar datos
+        let filteredData = salesDataCache.filter(row => {
+            return Object.entries(activeFilters).every(([key, value]) => {
+                if (typeof value === 'object') { // Rango de fechas
+                    const rowDate = new Date(String(row[key]).replace(/\"/g, ''));
+                    if (isNaN(rowDate)) return true;
+                    const from = value['date-from'] ? new Date(value['date-from']) : null;
+                    const to = value['date-to'] ? new Date(value['date-to']) : null;
+                    if (from && rowDate < from) return false;
+                    if (to && rowDate > to) return false;
+                    return true;
+                }
+                return String(row[key]) === String(value); // Filtro de select
+            });
+        });
+
+        // 3. Ordenar datos filtrados
         if (sortKey) {
-            sortedData.sort((a, b) => {
-                const valA = a[sortKey];
-                const valB = b[sortKey];
+            filteredData.sort((a, b) => {
+                const valA = a[sortKey], valB = b[sortKey];
                 if (String(valA) < String(valB)) return sortOrder === 'asc' ? -1 : 1;
                 if (String(valA) > String(valB)) return sortOrder === 'asc' ? 1 : -1;
                 return 0;
             });
         }
         
-        if (tableHeader.innerHTML === '' || tableHeader.dataset.rendered !== 'true') {
-            tableHeader.dataset.rendered = 'true';
-            const headers = Object.keys(data[0]);
-            tableHeader.innerHTML = headers.map(key => `<th data-key="${key}">${key.replace(/_/g, ' ')} <span></span></th>`).join('');
-            
-            document.querySelectorAll('#table-header th').forEach(th => {
-                th.addEventListener('click', () => {
-                    const key = th.dataset.key;
-                    const currentOrder = th.dataset.order || 'desc';
-                    const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
-                    document.querySelectorAll('#table-header th').forEach(innerTh => {
-                        innerTh.dataset.order = '';
-                        innerTh.querySelector('span').textContent = '';
-                    });
-                    th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼';
-                    th.dataset.order = newOrder;
-                    renderTable(salesDataCache, key, newOrder);
-                });
+        // 4. Actualizar opciones de los otros filtros (cascada)
+        updateFilterOptions(filteredData);
+        // 5. Renderizar el cuerpo de la tabla
+        renderTableBody(filteredData);
+    }
+    
+    function renderTableBody(data) {
+        const tableBody = document.getElementById('table-body');
+        tableBody.innerHTML = data.map(row => {
+            const cells = Object.values(row).map(cell => `<td>${String(cell || '-').replace(/\"/g, '')}</td>`).join('');
+            const rowEl = document.createElement('tr');
+            rowEl.innerHTML = cells;
+            rowEl.addEventListener('click', () => {
+                showDetails(row);
+                document.querySelectorAll('#sales-table tbody tr').forEach(tr => tr.classList.remove('selected'));
+                rowEl.classList.add('selected');
             });
-        }
-
-        tableBody.innerHTML = sortedData.map(row => {
-            const cells = Object.entries(row).map(([key, cell]) => {
-                let cellContent = cell;
-                if (key.toLowerCase().includes('fecha')) {
-                    cellContent = formatDate(cell);
-                } else if (key.toLowerCase().includes('estado')) {
-                    const statusClass = `status-${String(cell).toLowerCase()}`;
-                    return `<td><span class="status ${statusClass}">${cell}</span></td>`;
-                }
-                return `<td>${cellContent}</td>`;
-            }).join('');
-            return `<tr>${cells}</tr>`;
+            return rowEl.outerHTML;
         }).join('');
     }
 
-    // --- LÓGICA DE FILTRADO ---
-    function applyGlobalFilter() {
-        const filterValue = document.getElementById('filter-global').value.toLowerCase();
-        const filteredData = salesDataCache.filter(row => {
-            return Object.values(row).some(value => 
-                String(value).toLowerCase().includes(filterValue)
-            );
-        });
-        renderTable(filteredData);
+    function showDetails(row) {
+        const detailsContainer = document.getElementById('details-container');
+        detailsContainer.innerHTML = Object.entries(row).map(([key, value]) => `
+            <div class="detail-item">
+                <div class="detail-item-label">${key.replace(/_/g, ' ')}</div>
+                <div>${String(value || '-').replace(/\"/g, '')}</div>
+            </div>
+        `).join('');
     }
-    document.getElementById('filter-global').addEventListener('input', applyGlobalFilter);
 });
 </script>
 
