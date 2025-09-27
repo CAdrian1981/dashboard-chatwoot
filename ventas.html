@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Visor de Ventas v2.7</title>
+  <title>Visor de Ventas v2.8</title>
   <style>
     :root {
       --primary-color: #007bff;
@@ -109,6 +109,7 @@
     }
     .filter-row select, .filter-row input {
       width: 100%;
+      box-sizing: border-box;
       padding: 6px;
       font-size: 12px;
       border: 1px solid #ccc;
@@ -120,6 +121,11 @@
     }
     .filter-row select[multiple] option {
         padding: 5px;
+    }
+    /* Estilo para el contenedor de los filtros de fecha */
+    .date-filter-container {
+        display: flex;
+        gap: 5px;
     }
     #sales-table tbody tr { cursor: pointer; }
     #sales-table tbody tr:nth-child(even) {
@@ -226,11 +232,15 @@ window.addEventListener('load', () => {
         });
     }
     
+    // CORRECCIÓN: Estructura del filtro de fecha mejorada
     function renderFilterRow(headers) {
         const filterRow = document.getElementById('filter-row');
         filterRow.innerHTML = headers.map(key => {
             if (key.toLowerCase().includes('fecha')) {
-                return `<th><input type="date" class="filter-input" data-key="${key}" data-type="date-from"><input type="date" class="filter-input" data-key="${key}" data-type="date-to"></th>`;
+                return `<th><div class="date-filter-container">
+                    <input type="date" class="filter-input" data-key="${key}" data-type="date-from" title="Fecha desde">
+                    <input type="date" class="filter-input" data-key="${key}" data-type="date-to" title="Fecha hasta">
+                </div></th>`;
             } else {
                 return `<th><select class="filter-input" data-key="${key}" multiple></select></th>`;
             }
@@ -241,7 +251,6 @@ window.addEventListener('load', () => {
         });
     }
     
-    // CORRECCIÓN: Lógica de multifiltro restaurada
     function updateFilterOptions() {
         const headers = Object.keys(salesDataCache[0] || {});
         headers.forEach(key => {
@@ -341,7 +350,6 @@ window.addEventListener('load', () => {
         return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
     }
 
-    // CORRECCIÓN: Lógica de selección de fila restaurada
     function renderTableBody(data) {
         const tableBody = document.getElementById('table-body');
         tableBody.innerHTML = '';
