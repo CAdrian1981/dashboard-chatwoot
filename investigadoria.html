@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Investigador IA</title>
+  <title>Investigador IA v1.1</title>
   <style>
     :root {
       --primary-color: #007bff;
@@ -61,7 +61,6 @@
         opacity: 1;
         transform: translateY(0);
     }
-    /* Estilos para el informe que generará la IA */
     #report-container h3 {
         border-bottom: 2px solid var(--border-color);
         padding-bottom: 10px;
@@ -90,7 +89,6 @@
       <p class="loader-text">Investigando contacto...</p>
     </div>
     <div id="report-container">
-      <!-- El informe HTML generado por n8n se insertará aquí -->
     </div>
   </div>
 
@@ -108,11 +106,15 @@ window.addEventListener('load', () => {
             if (contact) {
                 hasProcessed = true;
                 
+                const additionalAttrs = contact.additional_attributes || {};
+
                 const contactInfo = {
                     name: contact.name,
                     email: contact.email,
                     phone: contact.phone_number,
-                    company: contact.company_name
+                    company_name: contact.company_name,
+                    city: additionalAttrs.city,
+                    country: additionalAttrs.country
                 };
 
                 investigateContact(contactInfo);
@@ -153,3 +155,4 @@ window.addEventListener('load', () => {
 
 </body>
 </html>
+
