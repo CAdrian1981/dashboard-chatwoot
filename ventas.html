@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Visor de Ventas v2.7</title>
+  <title>Visor de Ventas v2.8</title>
   <style>
     :root {
       --primary-color: #007bff;
@@ -12,6 +12,8 @@
       --border-color: #dee2e6;
       --hover-color: #e9ecef;
       --stripe-color: #f8f9fa;
+      --success-color: #28a745;
+      --error-color: #dc3545;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -36,24 +38,32 @@
         display: flex;
         justify-content: flex-end;
         align-items: center;
+        gap: 10px;
         margin-bottom: 20px;
     }
-    #clear-filters-btn {
+    .btn {
         padding: 8px 12px;
         font-size: 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
         border: 1px solid var(--primary-color);
         background-color: transparent;
         color: var(--primary-color);
-        border-radius: 6px;
-        cursor: pointer;
-        transition: background-color 0.2s, color 0.2s;
     }
-    #clear-filters-btn:hover {
+    .btn:hover {
         background-color: var(--primary-color);
         color: white;
     }
+    #export-btn {
+        background-color: var(--primary-color);
+        color: white;
+    }
+    #export-btn:hover {
+        background-color: #0056b3;
+        border-color: #0056b3;
+    }
     
-    /* Vista de Detalles */
     #details-container {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -79,7 +89,6 @@
       text-transform: uppercase;
     }
 
-    /* Tabla y Filtros */
     .table-wrapper { overflow-x: auto; }
     #sales-table {
       width: 100%;
@@ -119,20 +128,11 @@
         height: 80px;
         padding: 0;
     }
-    .filter-row select[multiple] option {
-        padding: 5px;
-    }
-    .date-filter-container {
-        display: flex;
-        gap: 5px;
-    }
+    .filter-row select[multiple] option { padding: 5px; }
+    .date-filter-container { display: flex; gap: 5px; }
     #sales-table tbody tr { cursor: pointer; }
-    #sales-table tbody tr:nth-child(even) {
-        background-color: var(--stripe-color);
-    }
-    #sales-table tbody tr:hover, #sales-table tbody tr.selected {
-      background-color: var(--hover-color);
-    }
+    #sales-table tbody tr:nth-child(even) { background-color: var(--stripe-color); }
+    #sales-table tbody tr:hover, #sales-table tbody tr.selected { background-color: var(--hover-color); }
   </style>
 </head>
 <body>
@@ -140,7 +140,8 @@
   <div class="container">
     <div class="card">
         <div class="header">
-            <button id="clear-filters-btn">Limpiar Filtros</button>
+            <button id="clear-filters-btn" class="btn">Limpiar Filtros</button>
+            <button id="export-btn" class="btn">Descargar Excel</button>
         </div>
         <div id="details-container">
             <p class="details-placeholder">Selecciona una venta de la tabla para ver sus detalles</p>
@@ -164,6 +165,7 @@ window.addEventListener('load', () => {
     let hasProcessed = false;
     let salesDataCache = [];
     let activeFilters = {};
+    let currentFilteredData = [];
 
     function handleWindowMessage(event) {
         if (event.source !== window.parent || hasProcessed) return;
@@ -176,8 +178,6 @@ window.addEventListener('load', () => {
             }
         } catch (error) {}
     }
-    window.addEventListener('message', handleWindowMessage);
-    window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
 
     async function fetchVentasData(pdvId) {
         try {
@@ -201,6 +201,7 @@ window.addEventListener('load', () => {
         const headers = Object.keys(data[0]);
         renderTableHeaders(headers);
         renderFilterRow(headers);
+        currentFilteredData = data;
         renderTableBody(data);
 
         document.getElementById('clear-filters-btn').addEventListener('click', () => {
@@ -209,6 +210,10 @@ window.addEventListener('load', () => {
                 else Array.from(input.options).forEach(opt => opt.selected = false);
              });
              applyFiltersAndSort();
+        });
+
+        document.getElementById('export-btn').addEventListener('click', async () => {
+            await sendDataToN8n(currentFilteredData);
         });
     }
 
@@ -246,20 +251,15 @@ window.addEventListener('load', () => {
         });
     }
     
-    // CORRECCIÓN: Lógica de multifiltro restaurada de la v2.5
     function updateFilterOptions() {
         const headers = Object.keys(salesDataCache[0] || {});
         headers.forEach(key => {
             if (key.toLowerCase().includes('fecha')) return;
-
             const otherFilters = { ...activeFilters };
             delete otherFilters[key];
-
             const relevantData = salesDataCache.filter(row => {
                 return Object.entries(otherFilters).every(([filterKey, value]) => {
-                    if (Array.isArray(value) && value.length > 0) {
-                        return value.includes(String(row[filterKey]));
-                    }
+                    if (Array.isArray(value) && value.length > 0) return value.includes(String(row[filterKey]));
                     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
                         const rowDate = new Date(String(row[filterKey]).replace(/\"/g, ''));
                         if (isNaN(rowDate)) return true;
@@ -273,20 +273,16 @@ window.addEventListener('load', () => {
                     return true;
                 });
             });
-
             const select = document.querySelector(`.filter-input[data-key="${key}"]`);
             const currentSelections = activeFilters[key] || [];
             const options = [...new Set(relevantData.map(item => item[key]))].sort();
-            
             select.innerHTML = '';
             options.forEach(option => {
                 if (option) {
                     const optionEl = document.createElement('option');
                     optionEl.value = option;
                     optionEl.textContent = option;
-                    if (currentSelections.includes(option)) {
-                        optionEl.selected = true;
-                    }
+                    if (currentSelections.includes(option)) optionEl.selected = true;
                     select.appendChild(optionEl);
                 }
             });
@@ -308,10 +304,8 @@ window.addEventListener('load', () => {
         
         let filteredData = salesDataCache.filter(row => {
             return Object.entries(activeFilters).every(([key, value]) => {
-                if (Array.isArray(value)) {
-                    return value.includes(String(row[key]));
-                }
-                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                if (Array.isArray(value)) return value.includes(String(row[key]));
+                if (typeof value === 'object'  && value !== null && !Array.isArray(value)) {
                     const rowDate = new Date(String(row[key]).replace(/\"/g, ''));
                     if (isNaN(rowDate)) return true;
                     const from = value['date-from'] ? new Date(value['date-from']) : null;
@@ -334,6 +328,7 @@ window.addEventListener('load', () => {
             });
         }
         
+        currentFilteredData = filteredData;
         updateFilterOptions();
         renderTableBody(filteredData);
     }
@@ -346,7 +341,6 @@ window.addEventListener('load', () => {
         return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
     }
 
-    // CORRECCIÓN: Lógica de selección de fila restaurada
     function renderTableBody(data) {
         const tableBody = document.getElementById('table-body');
         tableBody.innerHTML = '';
@@ -356,12 +350,9 @@ window.addEventListener('load', () => {
             rowEl.innerHTML = headers.map(key => {
                 const cellValue = row[key];
                 let cellContent = String(cellValue || '-').replace(/\"/g, '');
-                if (key.toLowerCase().includes('fecha')) {
-                    cellContent = formatDate(cellValue);
-                }
+                if (key.toLowerCase().includes('fecha')) cellContent = formatDate(cellValue);
                 return `<td>${cellContent}</td>`;
             }).join('');
-
             rowEl.addEventListener('click', () => {
                 if (rowEl.classList.contains('selected')) {
                     rowEl.classList.remove('selected');
@@ -380,9 +371,7 @@ window.addEventListener('load', () => {
         const detailsContainer = document.getElementById('details-container');
         detailsContainer.innerHTML = Object.entries(row).map(([key, value]) => {
             let displayValue = String(value || '-').replace(/\"/g, '');
-            if (key.toLowerCase().includes('fecha')) {
-                displayValue = formatDate(value);
-            }
+            if (key.toLowerCase().includes('fecha')) displayValue = formatDate(value);
             return `<div class="detail-item"><div class="detail-item-label">${key.replace(/_/g, ' ')}</div><div>${displayValue}</div></div>`;
         }).join('');
     }
@@ -391,6 +380,59 @@ window.addEventListener('load', () => {
         const detailsContainer = document.getElementById('details-container');
         detailsContainer.innerHTML = '<p class="details-placeholder">Selecciona una venta de la tabla para ver sus detalles</p>';
     }
+    
+    async function sendDataToN8n(data) {
+        const n8nWebhookUrl = 'https://n8n.vozipyme.es/webhook/807a9c5a-fdd8-4455-a989-8487d42864b9';
+        const exportBtn = document.getElementById('export-btn');
+        const originalText = exportBtn.textContent;
+        if (data.length === 0) {
+            exportBtn.textContent = 'No hay datos';
+            setTimeout(() => { exportBtn.textContent = originalText; }, 2000);
+            return;
+        }
+
+        exportBtn.textContent = 'Generando...';
+        exportBtn.disabled = true;
+
+        try {
+            const response = await fetch(n8nWebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) throw new Error(`Error en n8n: ${response.statusText}`);
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            const today = new Date().toISOString().slice(0, 10);
+            a.download = `export_ventas_${today}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            exportBtn.textContent = '¡Descargado!';
+            exportBtn.style.backgroundColor = 'var(--success-color)';
+
+        } catch (error) {
+            console.error('Error al exportar:', error);
+            exportBtn.textContent = 'Error';
+            exportBtn.style.backgroundColor = 'var(--error-color)';
+        } finally {
+            setTimeout(() => {
+                exportBtn.textContent = originalText;
+                exportBtn.style.backgroundColor = 'var(--primary-color)';
+                exportBtn.disabled = false;
+            }, 3000);
+        }
+    }
+    
+    window.addEventListener('message', handleWindowMessage);
+    window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
 });
 </script>
 
