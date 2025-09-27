@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Visor de Ventas v3.0</title>
+  <title>Visor de Ventas v3.1</title>
   <style>
     :root {
       --primary-color: #007bff;
@@ -151,7 +151,7 @@
     <div class="card">
         <div class="header">
             <button id="clear-filters-btn" class="btn">Limpiar Filtros</button>
-            <button id="export-btn" class="btn">Exportar a CSV</button>
+            <button id="export-btn" class="btn">Exportar a Excel</button>
         </div>
         <div id="details-container">
             <p class="details-placeholder">Selecciona una venta de la tabla para ver sus detalles</p>
@@ -171,7 +171,6 @@
   </div>
 
 <script>
-// CORRECCIÓN: Toda la lógica está ahora dentro del listener 'load'
 window.addEventListener('load', () => {
     let hasProcessed = false;
     let salesDataCache = [];
@@ -402,9 +401,9 @@ window.addEventListener('load', () => {
         detailsContainer.innerHTML = '<p class="details-placeholder">Selecciona una venta de la tabla para ver sus detalles</p>';
     }
 
+    // CORRECCIÓN: Función de exportación mejorada para compatibilidad con Excel
     function exportToCsv(data) {
         if (data.length === 0) {
-            // No usamos alert()
             const exportBtn = document.getElementById('export-btn');
             const originalText = exportBtn.textContent;
             exportBtn.textContent = 'No hay datos';
@@ -425,7 +424,8 @@ window.addEventListener('load', () => {
         });
 
         const csvContent = csvRows.join('\n');
-        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        // Añadir BOM para que Excel reconozca la codificación UTF-8
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         
@@ -439,7 +439,6 @@ window.addEventListener('load', () => {
         document.body.removeChild(link);
     }
     
-    // CORRECCIÓN: Iniciar la comunicación con Chatwoot
     window.addEventListener('message', handleWindowMessage);
     window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
 });
