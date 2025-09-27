@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Visor de Ventas v3.4</title>
+  <title>Visor de Ventas v3.5</title>
   <style>
     :root {
       --primary-color: #007bff;
@@ -153,7 +153,7 @@
     <div class="card">
         <div class="header">
             <button id="clear-filters-btn" class="btn">Limpiar Filtros</button>
-            <button id="export-btn" class="btn">Crear Hoja de Cálculo</button>
+            <button id="export-btn" class="btn">Descargar Excel</button>
         </div>
         <div id="details-container">
             <p class="details-placeholder">Selecciona una venta de la tabla para ver sus detalles</p>
@@ -202,7 +202,6 @@ window.addEventListener('load', () => {
              applyFiltersAndSort();
         });
 
-        // Evento para el botón de exportación actualizado
         document.getElementById('export-btn').addEventListener('click', async () => {
             await sendDataToN8n(currentFilteredData);
         });
@@ -218,25 +217,19 @@ window.addEventListener('load', () => {
     function showDetails(row) { const detailsContainer = document.getElementById('details-container'); detailsContainer.innerHTML = Object.entries(row).map(([key, value]) => { let displayValue = String(value || '-').replace(/\"/g, ''); if (key.toLowerCase().includes('fecha')) { displayValue = formatDate(value); } return `<div class="detail-item"><div class="detail-item-label">${key.replace(/_/g, ' ')}</div><div>${displayValue}</div></div>`; }).join(''); }
     function clearDetails() { const detailsContainer = document.getElementById('details-container'); detailsContainer.innerHTML = '<p class="details-placeholder">Selecciona una venta de la tabla para ver sus detalles</p>'; }
     
-    // --- FUNCIÓN PARA ENVIAR DATOS A N8N ---
+    // CORRECCIÓN: Lógica para enviar datos Y descargar el archivo de vuelta
     async function sendDataToN8n(data) {
-        // CORRECCIÓN: URL del webhook actualizada
         const n8nWebhookUrl = 'https://n8n.vozipyme.es/webhook/807a9c5a-fdd8-4455-a989-8487d42864b9';
-
         const exportBtn = document.getElementById('export-btn');
         const originalText = exportBtn.textContent;
 
         if (data.length === 0) {
             exportBtn.textContent = 'No hay datos';
-            exportBtn.style.backgroundColor = 'var(--secondary-color)';
-            setTimeout(() => {
-                exportBtn.textContent = originalText;
-                exportBtn.style.backgroundColor = 'var(--primary-color)';
-            }, 2000);
+            setTimeout(() => { exportBtn.textContent = originalText; }, 2000);
             return;
         }
 
-        exportBtn.textContent = 'Enviando...';
+        exportBtn.textContent = 'Generando...';
         exportBtn.disabled = true;
 
         try {
@@ -246,12 +239,26 @@ window.addEventListener('load', () => {
                 body: JSON.stringify(data)
             });
 
-            if (!response.ok) throw new Error(`Error en la respuesta de n8n: ${response.statusText}`);
+            if (!response.ok) throw new Error(`Error en n8n: ${response.statusText}`);
 
-            exportBtn.textContent = '¡Enviado!';
+            // Recibimos el archivo como un blob
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            const today = new Date().toISOString().slice(0, 10);
+            a.download = `export_ventas_${today}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            exportBtn.textContent = '¡Descargado!';
             exportBtn.style.backgroundColor = 'var(--success-color)';
+
         } catch (error) {
-            console.error('Error al enviar datos a n8n:', error);
+            console.error('Error al exportar:', error);
             exportBtn.textContent = 'Error';
             exportBtn.style.backgroundColor = 'var(--error-color)';
         } finally {
@@ -263,7 +270,6 @@ window.addEventListener('load', () => {
         }
     }
 
-    // Iniciar la comunicación con Chatwoot
     window.addEventListener('message', handleWindowMessage);
     window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
 });
