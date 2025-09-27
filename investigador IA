@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Investigador IA</title>
+  <style>
+    :root {
+      --primary-color: #007bff;
+      --background-color: #f8f9fa;
+      --card-bg-color: #ffffff;
+      --text-color: #333;
+      --border-color: #dee2e6;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--background-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 20px;
+      font-size: 14px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      min-height: 100vh;
+    }
+    .container {
+      width: 100%;
+      max-width: 800px;
+    }
+    .loader-container {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    .loader {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid var(--primary-color);
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px auto;
+    }
+    .loader-text {
+      font-weight: 500;
+      color: #6c757d;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    #report-container {
+        background-color: var(--card-bg-color);
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        padding: 25px;
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    #report-container.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+    /* Estilos para el informe que generará la IA */
+    #report-container h3 {
+        border-bottom: 2px solid var(--border-color);
+        padding-bottom: 10px;
+        margin-top: 0;
+    }
+    #report-container ul {
+        list-style: none;
+        padding-left: 0;
+    }
+    #report-container li {
+        margin-bottom: 8px;
+    }
+    #report-container a {
+        color: var(--primary-color);
+        text-decoration: none;
+    }
+    #report-container a:hover {
+        text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div id="loader" class="loader-container">
+      <div class="loader"></div>
+      <p class="loader-text">Investigando contacto...</p>
+    </div>
+    <div id="report-container">
+      <!-- El informe HTML generado por n8n se insertará aquí -->
+    </div>
+  </div>
+
+<script>
+window.addEventListener('load', () => {
+    let hasProcessed = false;
+    const n8nWebhookUrl = 'https://n8n.vozipyme.es/webhook/3cc94da7-e296-42d6-bc35-f0c787e13fc3';
+
+    function handleWindowMessage(event) {
+        if (event.source !== window.parent || hasProcessed) return;
+        try {
+            const parsedData = JSON.parse(event.data);
+            const contact = parsedData?.data?.contact;
+            
+            if (contact) {
+                hasProcessed = true;
+                
+                const contactInfo = {
+                    name: contact.name,
+                    email: contact.email,
+                    phone: contact.phone_number,
+                    company: contact.company_name
+                };
+
+                investigateContact(contactInfo);
+            }
+        } catch (error) { /* Ignorar mensajes no JSON */ }
+    }
+    window.addEventListener('message', handleWindowMessage);
+    window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
+
+    async function investigateContact(contactInfo) {
+        const loader = document.getElementById('loader');
+        const reportContainer = document.getElementById('report-container');
+
+        try {
+            const response = await fetch(n8nWebhookUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(contactInfo)
+            });
+
+            if (!response.ok) {
+                throw new Error(`Error en la respuesta de n8n: ${response.statusText}`);
+            }
+
+            const reportHtml = await response.text();
+            
+            loader.style.display = 'none';
+            reportContainer.innerHTML = reportHtml;
+            reportContainer.classList.add('visible');
+
+        } catch (error) {
+            console.error("Error al contactar con el investigador IA:", error);
+            loader.querySelector('.loader-text').textContent = 'Error en la investigación. Revisa la consola para más detalles.';
+        }
+    }
+});
+</script>
+
+</body>
+</html>
