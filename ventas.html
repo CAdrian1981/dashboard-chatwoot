@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Visor de Ventas v2.8</title>
+  <title>Visor de Ventas v2.9</title>
   <style>
     :root {
       --primary-color: #007bff;
@@ -167,224 +167,25 @@ window.addEventListener('load', () => {
     let activeFilters = {};
     let currentFilteredData = [];
 
-    function handleWindowMessage(event) {
-        if (event.source !== window.parent || hasProcessed) return;
-        try {
-            const parsedData = JSON.parse(event.data);
-            const pdvId = parsedData?.data?.contact?.custom_attributes?.id_pdv;
-            if (pdvId) {
-                hasProcessed = true;
-                fetchVentasData(pdvId);
-            }
-        } catch (error) {}
-    }
-
-    async function fetchVentasData(pdvId) {
-        try {
-            const url = `https://n8n.vozipyme.es/webhook/4abcfbd2-ec57-471b-b580-927938988ee9?id_pdv=${pdvId}`;
-            const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
-            const data = await response.json();
-            salesDataCache = data;
-            initializeTable(data);
-        } catch (error) {
-            document.getElementById('table-body').innerHTML = `<tr><td colspan="100%" style="text-align: center; color: red;">Error al cargar datos.</td></tr>`;
-        }
-    }
-
-    function initializeTable(data) {
-        if (!data || data.length === 0) {
-            document.getElementById('table-body').innerHTML = `<tr><td colspan="100%" style="text-align: center;">No se encontraron ventas.</td></tr>`;
-            return;
-        }
-        
-        const headers = Object.keys(data[0]);
-        renderTableHeaders(headers);
-        renderFilterRow(headers);
-        currentFilteredData = data;
-        renderTableBody(data);
-
-        document.getElementById('clear-filters-btn').addEventListener('click', () => {
-             document.querySelectorAll('.filter-input').forEach(input => {
-                if(input.type === 'date') input.value = '';
-                else Array.from(input.options).forEach(opt => opt.selected = false);
-             });
-             applyFiltersAndSort();
-        });
-
-        document.getElementById('export-btn').addEventListener('click', async () => {
-            await sendDataToN8n(currentFilteredData);
-        });
-    }
-
-    function renderTableHeaders(headers) {
-        const headerRow = document.getElementById('table-header');
-        headerRow.innerHTML = headers.map(key => `<th data-key="${key}">${key.replace(/_/g, ' ')} <span></span></th>`).join('');
-        headerRow.querySelectorAll('th').forEach(th => {
-            th.addEventListener('click', () => {
-                const key = th.dataset.key;
-                const currentOrder = th.dataset.order || 'desc';
-                const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
-                headerRow.querySelectorAll('th').forEach(innerTh => {
-                    innerTh.dataset.order = '';
-                    innerTh.querySelector('span').textContent = '';
-                });
-                th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼';
-                th.dataset.order = newOrder;
-                applyFiltersAndSort(key, newOrder);
-            });
-        });
-    }
+    // --- (Funciones sin cambios) ---
+    function handleWindowMessage(event) { if (event.source !== window.parent || hasProcessed) return; try { const parsedData = JSON.parse(event.data); const pdvId = parsedData?.data?.contact?.custom_attributes?.id_pdv; if (pdvId) { hasProcessed = true; fetchVentasData(pdvId); } } catch (error) {} }
+    async function fetchVentasData(pdvId) { try { const url = `https://n8n.vozipyme.es/webhook/4abcfbd2-ec57-471b-b580-927938988ee9?id_pdv=${pdvId}`; const response = await fetch(url); if (!response.ok) throw new Error(`HTTP Error: ${response.status}`); const data = await response.json(); salesDataCache = data; initializeTable(data); } catch (error) { document.getElementById('table-body').innerHTML = `<tr><td colspan="100%" style="text-align: center; color: red;">Error al cargar datos.</td></tr>`; } }
+    function initializeTable(data) { if (!data || data.length === 0) { document.getElementById('table-body').innerHTML = `<tr><td colspan="100%" style="text-align: center;">No se encontraron ventas.</td></tr>`; return; } const headers = Object.keys(data[0]); renderTableHeaders(headers); renderFilterRow(headers); currentFilteredData = data; renderTableBody(data); document.getElementById('clear-filters-btn').addEventListener('click', () => { document.querySelectorAll('.filter-input').forEach(input => { if(input.type === 'date') input.value = ''; else Array.from(input.options).forEach(opt => opt.selected = false); }); applyFiltersAndSort(); }); document.getElementById('export-btn').addEventListener('click', async () => { await sendDataToN8n(currentFilteredData); }); }
+    function renderTableHeaders(headers) { const headerRow = document.getElementById('table-header'); headerRow.innerHTML = headers.map(key => `<th data-key="${key}">${key.replace(/_/g, ' ')} <span></span></th>`).join(''); headerRow.querySelectorAll('th').forEach(th => { th.addEventListener('click', () => { const key = th.dataset.key; const currentOrder = th.dataset.order || 'desc'; const newOrder = currentOrder === 'asc' ? 'desc' : 'asc'; headerRow.querySelectorAll('th').forEach(innerTh => { innerTh.dataset.order = ''; innerTh.querySelector('span').textContent = ''; }); th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼'; th.dataset.order = newOrder; applyFiltersAndSort(key, newOrder); }); }); }
+    function renderFilterRow(headers) { const filterRow = document.getElementById('filter-row'); filterRow.innerHTML = headers.map(key => { if (key.toLowerCase().includes('fecha')) { return `<th><div class="date-filter-container"><input type="date" class="filter-input" data-key="${key}" data-type="date-from" title="Fecha desde"><input type="date" class="filter-input" data-key="${key}" data-type="date-to" title="Fecha hasta"></div></th>`; } else { return `<th><select class="filter-input" data-key="${key}" multiple></select></th>`; } }).join(''); updateFilterOptions(); document.querySelectorAll('.filter-input').forEach(input => { input.addEventListener('change', () => applyFiltersAndSort()); }); }
+    function updateFilterOptions() { const headers = Object.keys(salesDataCache[0] || {}); headers.forEach(key => { if (key.toLowerCase().includes('fecha')) return; const otherFilters = { ...activeFilters }; delete otherFilters[key]; const relevantData = salesDataCache.filter(row => { return Object.entries(otherFilters).every(([filterKey, value]) => { if (Array.isArray(value) && value.length > 0) return value.includes(String(row[filterKey])); if (typeof value === 'object' && value !== null && !Array.isArray(value)) { const rowDate = new Date(String(row[filterKey]).replace(/\"/g, '')); if (isNaN(rowDate)) return true; const from = value['date-from'] ? new Date(value['date-from']) : null; const toRaw = value['date-to'] ? new Date(value['date-to']) : null; let to = toRaw ? new Date(new Date(toRaw).setHours(23, 59, 59, 999)) : null; if (from && rowDate < from) return false; if (to && rowDate > to) return false; return true; } return true; }); }); const select = document.querySelector(`.filter-input[data-key="${key}"]`); const currentSelections = activeFilters[key] || []; const options = [...new Set(relevantData.map(item => item[key]))].sort(); select.innerHTML = ''; options.forEach(option => { if (option) { const optionEl = document.createElement('option'); optionEl.value = option; optionEl.textContent = option; if (currentSelections.includes(option)) optionEl.selected = true; select.appendChild(optionEl); } }); }); }
+    function applyFiltersAndSort(sortKey = null, sortOrder = 'desc') { activeFilters = {}; document.querySelectorAll('.filter-input').forEach(input => { const key = input.dataset.key; if (input.type.startsWith('date')) { if (!activeFilters[key]) activeFilters[key] = {}; activeFilters[key][input.dataset.type] = input.value; } else { const selectedValues = Array.from(input.selectedOptions).map(opt => opt.value); if (selectedValues.length > 0) activeFilters[key] = selectedValues; } }); let filteredData = salesDataCache.filter(row => { return Object.entries(activeFilters).every(([key, value]) => { if (Array.isArray(value)) return value.includes(String(row[key])); if (typeof value === 'object'  && value !== null && !Array.isArray(value)) { const rowDate = new Date(String(row[key]).replace(/\"/g, '')); if (isNaN(rowDate)) return true; const from = value['date-from'] ? new Date(value['date-from']) : null; const toRaw = value['date-to'] ? new Date(value['date-to']) : null; let to = toRaw ? new Date(new Date(toRaw).setHours(23, 59, 59, 999)) : null; if (from && rowDate < from) return false; if (to && rowDate > to) return false; return true; } return true; }); }); if (sortKey) { filteredData.sort((a, b) => { const valA = a[sortKey], valB = b[sortKey]; if (String(valA) < String(valB)) return sortOrder === 'asc' ? -1 : 1; if (String(valA) > String(valB)) return sortOrder === 'asc' ? 1 : -1; return 0; }); } currentFilteredData = filteredData; updateFilterOptions(); renderTableBody(filteredData); }
+    function formatDate(dateString) { if (!dateString) return '-'; const cleanString = String(dateString).replace(/\"/g, ''); const date = new Date(cleanString); if (isNaN(date.getTime())) return '-'; return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
+    function renderTableBody(data) { const tableBody = document.getElementById('table-body'); tableBody.innerHTML = ''; data.forEach(row => { const rowEl = document.createElement('tr'); const headers = Object.keys(salesDataCache[0] || {}); rowEl.innerHTML = headers.map(key => { const cellValue = row[key]; let cellContent = String(cellValue || '-').replace(/\"/g, ''); if (key.toLowerCase().includes('fecha')) cellContent = formatDate(cellValue); return `<td>${cellContent}</td>`; }).join(''); rowEl.addEventListener('click', () => { if (rowEl.classList.contains('selected')) { rowEl.classList.remove('selected'); clearDetails(); } else { document.querySelectorAll('#sales-table tbody tr').forEach(tr => tr.classList.remove('selected')); rowEl.classList.add('selected'); showDetails(row); } }); tableBody.appendChild(rowEl); }); }
+    function showDetails(row) { const detailsContainer = document.getElementById('details-container'); detailsContainer.innerHTML = Object.entries(row).map(([key, value]) => { let displayValue = String(value || '-').replace(/\"/g, ''); if (key.toLowerCase().includes('fecha')) displayValue = formatDate(value); return `<div class="detail-item"><div class="detail-item-label">${key.replace(/_/g, ' ')}</div><div>${displayValue}</div></div>`; }).join(''); }
+    function clearDetails() { const detailsContainer = document.getElementById('details-container'); detailsContainer.innerHTML = '<p class="details-placeholder">Selecciona una venta de la tabla para ver sus detalles</p>'; }
     
-    function renderFilterRow(headers) {
-        const filterRow = document.getElementById('filter-row');
-        filterRow.innerHTML = headers.map(key => {
-            if (key.toLowerCase().includes('fecha')) {
-                return `<th><div class="date-filter-container"><input type="date" class="filter-input" data-key="${key}" data-type="date-from" title="Fecha desde"><input type="date" class="filter-input" data-key="${key}" data-type="date-to" title="Fecha hasta"></div></th>`;
-            } else {
-                return `<th><select class="filter-input" data-key="${key}" multiple></select></th>`;
-            }
-        }).join('');
-        updateFilterOptions();
-        document.querySelectorAll('.filter-input').forEach(input => {
-            input.addEventListener('change', () => applyFiltersAndSort());
-        });
-    }
-    
-    function updateFilterOptions() {
-        const headers = Object.keys(salesDataCache[0] || {});
-        headers.forEach(key => {
-            if (key.toLowerCase().includes('fecha')) return;
-            const otherFilters = { ...activeFilters };
-            delete otherFilters[key];
-            const relevantData = salesDataCache.filter(row => {
-                return Object.entries(otherFilters).every(([filterKey, value]) => {
-                    if (Array.isArray(value) && value.length > 0) return value.includes(String(row[filterKey]));
-                    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-                        const rowDate = new Date(String(row[filterKey]).replace(/\"/g, ''));
-                        if (isNaN(rowDate)) return true;
-                        const from = value['date-from'] ? new Date(value['date-from']) : null;
-                        const toRaw = value['date-to'] ? new Date(value['date-to']) : null;
-                        let to = toRaw ? new Date(new Date(toRaw).setHours(23, 59, 59, 999)) : null;
-                        if (from && rowDate < from) return false;
-                        if (to && rowDate > to) return false;
-                        return true;
-                    }
-                    return true;
-                });
-            });
-            const select = document.querySelector(`.filter-input[data-key="${key}"]`);
-            const currentSelections = activeFilters[key] || [];
-            const options = [...new Set(relevantData.map(item => item[key]))].sort();
-            select.innerHTML = '';
-            options.forEach(option => {
-                if (option) {
-                    const optionEl = document.createElement('option');
-                    optionEl.value = option;
-                    optionEl.textContent = option;
-                    if (currentSelections.includes(option)) optionEl.selected = true;
-                    select.appendChild(optionEl);
-                }
-            });
-        });
-    }
-    
-    function applyFiltersAndSort(sortKey = null, sortOrder = 'desc') {
-        activeFilters = {};
-        document.querySelectorAll('.filter-input').forEach(input => {
-            const key = input.dataset.key;
-            if (input.type.startsWith('date')) {
-                if (!activeFilters[key]) activeFilters[key] = {};
-                activeFilters[key][input.dataset.type] = input.value;
-            } else {
-                const selectedValues = Array.from(input.selectedOptions).map(opt => opt.value);
-                if (selectedValues.length > 0) activeFilters[key] = selectedValues;
-            }
-        });
-        
-        let filteredData = salesDataCache.filter(row => {
-            return Object.entries(activeFilters).every(([key, value]) => {
-                if (Array.isArray(value)) return value.includes(String(row[key]));
-                if (typeof value === 'object'  && value !== null && !Array.isArray(value)) {
-                    const rowDate = new Date(String(row[key]).replace(/\"/g, ''));
-                    if (isNaN(rowDate)) return true;
-                    const from = value['date-from'] ? new Date(value['date-from']) : null;
-                    const toRaw = value['date-to'] ? new Date(value['date-to']) : null;
-                    let to = toRaw ? new Date(new Date(toRaw).setHours(23, 59, 59, 999)) : null;
-                    if (from && rowDate < from) return false;
-                    if (to && rowDate > to) return false;
-                    return true;
-                }
-                return true;
-            });
-        });
-
-        if (sortKey) {
-            filteredData.sort((a, b) => {
-                const valA = a[sortKey], valB = b[sortKey];
-                if (String(valA) < String(valB)) return sortOrder === 'asc' ? -1 : 1;
-                if (String(valA) > String(valB)) return sortOrder === 'asc' ? 1 : -1;
-                return 0;
-            });
-        }
-        
-        currentFilteredData = filteredData;
-        updateFilterOptions();
-        renderTableBody(filteredData);
-    }
-    
-    function formatDate(dateString) {
-        if (!dateString) return '-';
-        const cleanString = String(dateString).replace(/\"/g, '');
-        const date = new Date(cleanString);
-        if (isNaN(date.getTime())) return '-';
-        return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
-    }
-
-    function renderTableBody(data) {
-        const tableBody = document.getElementById('table-body');
-        tableBody.innerHTML = '';
-        data.forEach(row => {
-            const rowEl = document.createElement('tr');
-            const headers = Object.keys(salesDataCache[0] || {});
-            rowEl.innerHTML = headers.map(key => {
-                const cellValue = row[key];
-                let cellContent = String(cellValue || '-').replace(/\"/g, '');
-                if (key.toLowerCase().includes('fecha')) cellContent = formatDate(cellValue);
-                return `<td>${cellContent}</td>`;
-            }).join('');
-            rowEl.addEventListener('click', () => {
-                if (rowEl.classList.contains('selected')) {
-                    rowEl.classList.remove('selected');
-                    clearDetails();
-                } else {
-                    document.querySelectorAll('#sales-table tbody tr').forEach(tr => tr.classList.remove('selected'));
-                    rowEl.classList.add('selected');
-                    showDetails(row);
-                }
-            });
-            tableBody.appendChild(rowEl);
-        });
-    }
-
-    function showDetails(row) {
-        const detailsContainer = document.getElementById('details-container');
-        detailsContainer.innerHTML = Object.entries(row).map(([key, value]) => {
-            let displayValue = String(value || '-').replace(/\"/g, '');
-            if (key.toLowerCase().includes('fecha')) displayValue = formatDate(value);
-            return `<div class="detail-item"><div class="detail-item-label">${key.replace(/_/g, ' ')}</div><div>${displayValue}</div></div>`;
-        }).join('');
-    }
-
-    function clearDetails() {
-        const detailsContainer = document.getElementById('details-container');
-        detailsContainer.innerHTML = '<p class="details-placeholder">Selecciona una venta de la tabla para ver sus detalles</p>';
-    }
-    
+    // CORRECCIÓN: Lógica para descargar el archivo sin corromperlo
     async function sendDataToN8n(data) {
         const n8nWebhookUrl = 'https://n8n.vozipyme.es/webhook/807a9c5a-fdd8-4455-a989-8487d42864b9';
         const exportBtn = document.getElementById('export-btn');
         const originalText = exportBtn.textContent;
+
         if (data.length === 0) {
             exportBtn.textContent = 'No hay datos';
             setTimeout(() => { exportBtn.textContent = originalText; }, 2000);
@@ -403,15 +204,21 @@ window.addEventListener('load', () => {
 
             if (!response.ok) throw new Error(`Error en n8n: ${response.statusText}`);
 
+            // 1. Recibimos el archivo como un blob (datos binarios) para no corromperlo
             const blob = await response.blob();
+            
+            // 2. Creamos un enlace temporal para iniciar la descarga
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.style.display = 'none';
             a.href = url;
             const today = new Date().toISOString().slice(0, 10);
-            a.download = `export_ventas_${today}.xlsx`;
+            a.download = `export_ventas_${today}.xlsx`; // Nombre del archivo
+            
             document.body.appendChild(a);
-            a.click();
+            a.click(); // Simulamos el clic para que el navegador descargue el archivo
+            
+            // 3. Limpiamos
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
 
@@ -438,3 +245,4 @@ window.addEventListener('load', () => {
 
 </body>
 </html>
+
