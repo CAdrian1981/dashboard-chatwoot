@@ -2,19 +2,16 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Visor de Ventas v3.5</title>
+  <title>Visor de Ventas v2.7</title>
   <style>
     :root {
       --primary-color: #007bff;
-      --secondary-color: #6c757d;
       --background-color: #f8f9fa;
       --card-bg-color: #ffffff;
       --text-color: #333;
       --border-color: #dee2e6;
       --hover-color: #e9ecef;
       --stripe-color: #f8f9fa;
-      --success-color: #28a745;
-      --error-color: #dc3545;
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
@@ -39,30 +36,21 @@
         display: flex;
         justify-content: flex-end;
         align-items: center;
-        gap: 10px; /* Espacio entre botones */
         margin-bottom: 20px;
     }
-    .btn {
+    #clear-filters-btn {
         padding: 8px 12px;
         font-size: 12px;
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.2s;
         border: 1px solid var(--primary-color);
         background-color: transparent;
         color: var(--primary-color);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
     }
-    .btn:hover {
+    #clear-filters-btn:hover {
         background-color: var(--primary-color);
         color: white;
-    }
-    #export-btn {
-        background-color: var(--primary-color);
-        color: white;
-    }
-    #export-btn:hover {
-        background-color: #0056b3;
-        border-color: #0056b3;
     }
     
     /* Vista de Detalles */
@@ -152,8 +140,7 @@
   <div class="container">
     <div class="card">
         <div class="header">
-            <button id="clear-filters-btn" class="btn">Limpiar Filtros</button>
-            <button id="export-btn" class="btn">Descargar Excel</button>
+            <button id="clear-filters-btn">Limpiar Filtros</button>
         </div>
         <div id="details-container">
             <p class="details-placeholder">Selecciona una venta de la tabla para ver sus detalles</p>
@@ -177,21 +164,43 @@ window.addEventListener('load', () => {
     let hasProcessed = false;
     let salesDataCache = [];
     let activeFilters = {};
-    let currentFilteredData = [];
 
-    // --- (Funciones de inicialización y filtros sin cambios) ---
-    function handleWindowMessage(event) { if (event.source !== window.parent || hasProcessed) return; try { const parsedData = JSON.parse(event.data); const pdvId = parsedData?.data?.contact?.custom_attributes?.id_pdv; if (pdvId) { hasProcessed = true; fetchVentasData(pdvId); } } catch (error) {} }
-    async function fetchVentasData(pdvId) { try { const url = `https://n8n.vozipyme.es/webhook/4abcfbd2-ec57-471b-b580-927938988ee9?id_pdv=${pdvId}`; const response = await fetch(url); if (!response.ok) throw new Error(`HTTP Error: ${response.status}`); const data = await response.json(); salesDataCache = data; initializeTable(data); } catch (error) { document.getElementById('table-body').innerHTML = `<tr><td colspan="100%" style="text-align: center; color: red;">Error al cargar datos.</td></tr>`; } }
-    
+    function handleWindowMessage(event) {
+        if (event.source !== window.parent || hasProcessed) return;
+        try {
+            const parsedData = JSON.parse(event.data);
+            const pdvId = parsedData?.data?.contact?.custom_attributes?.id_pdv;
+            if (pdvId) {
+                hasProcessed = true;
+                fetchVentasData(pdvId);
+            }
+        } catch (error) {}
+    }
+    window.addEventListener('message', handleWindowMessage);
+    window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
+
+    async function fetchVentasData(pdvId) {
+        try {
+            const url = `https://n8n.vozipyme.es/webhook/4abcfbd2-ec57-471b-b580-927938988ee9?id_pdv=${pdvId}`;
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+            const data = await response.json();
+            salesDataCache = data;
+            initializeTable(data);
+        } catch (error) {
+            document.getElementById('table-body').innerHTML = `<tr><td colspan="100%" style="text-align: center; color: red;">Error al cargar datos.</td></tr>`;
+        }
+    }
+
     function initializeTable(data) {
         if (!data || data.length === 0) {
             document.getElementById('table-body').innerHTML = `<tr><td colspan="100%" style="text-align: center;">No se encontraron ventas.</td></tr>`;
             return;
         }
+        
         const headers = Object.keys(data[0]);
         renderTableHeaders(headers);
         renderFilterRow(headers);
-        currentFilteredData = data;
         renderTableBody(data);
 
         document.getElementById('clear-filters-btn').addEventListener('click', () => {
@@ -201,80 +210,189 @@ window.addEventListener('load', () => {
              });
              applyFiltersAndSort();
         });
+    }
 
-        document.getElementById('export-btn').addEventListener('click', async () => {
-            await sendDataToN8n(currentFilteredData);
+    function renderTableHeaders(headers) {
+        const headerRow = document.getElementById('table-header');
+        headerRow.innerHTML = headers.map(key => `<th data-key="${key}">${key.replace(/_/g, ' ')} <span></span></th>`).join('');
+        headerRow.querySelectorAll('th').forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.dataset.key;
+                const currentOrder = th.dataset.order || 'desc';
+                const newOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+                headerRow.querySelectorAll('th').forEach(innerTh => {
+                    innerTh.dataset.order = '';
+                    innerTh.querySelector('span').textContent = '';
+                });
+                th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼';
+                th.dataset.order = newOrder;
+                applyFiltersAndSort(key, newOrder);
+            });
+        });
+    }
+    
+    function renderFilterRow(headers) {
+        const filterRow = document.getElementById('filter-row');
+        filterRow.innerHTML = headers.map(key => {
+            if (key.toLowerCase().includes('fecha')) {
+                return `<th><div class="date-filter-container"><input type="date" class="filter-input" data-key="${key}" data-type="date-from" title="Fecha desde"><input type="date" class="filter-input" data-key="${key}" data-type="date-to" title="Fecha hasta"></div></th>`;
+            } else {
+                return `<th><select class="filter-input" data-key="${key}" multiple></select></th>`;
+            }
+        }).join('');
+        updateFilterOptions();
+        document.querySelectorAll('.filter-input').forEach(input => {
+            input.addEventListener('change', () => applyFiltersAndSort());
+        });
+    }
+    
+    // CORRECCIÓN: Lógica de multifiltro restaurada de la v2.5
+    function updateFilterOptions() {
+        const headers = Object.keys(salesDataCache[0] || {});
+        headers.forEach(key => {
+            if (key.toLowerCase().includes('fecha')) return;
+
+            const otherFilters = { ...activeFilters };
+            delete otherFilters[key];
+
+            const relevantData = salesDataCache.filter(row => {
+                return Object.entries(otherFilters).every(([filterKey, value]) => {
+                    if (Array.isArray(value) && value.length > 0) {
+                        return value.includes(String(row[filterKey]));
+                    }
+                    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                        const rowDate = new Date(String(row[filterKey]).replace(/\"/g, ''));
+                        if (isNaN(rowDate)) return true;
+                        const from = value['date-from'] ? new Date(value['date-from']) : null;
+                        const toRaw = value['date-to'] ? new Date(value['date-to']) : null;
+                        let to = toRaw ? new Date(new Date(toRaw).setHours(23, 59, 59, 999)) : null;
+                        if (from && rowDate < from) return false;
+                        if (to && rowDate > to) return false;
+                        return true;
+                    }
+                    return true;
+                });
+            });
+
+            const select = document.querySelector(`.filter-input[data-key="${key}"]`);
+            const currentSelections = activeFilters[key] || [];
+            const options = [...new Set(relevantData.map(item => item[key]))].sort();
+            
+            select.innerHTML = '';
+            options.forEach(option => {
+                if (option) {
+                    const optionEl = document.createElement('option');
+                    optionEl.value = option;
+                    optionEl.textContent = option;
+                    if (currentSelections.includes(option)) {
+                        optionEl.selected = true;
+                    }
+                    select.appendChild(optionEl);
+                }
+            });
+        });
+    }
+    
+    function applyFiltersAndSort(sortKey = null, sortOrder = 'desc') {
+        activeFilters = {};
+        document.querySelectorAll('.filter-input').forEach(input => {
+            const key = input.dataset.key;
+            if (input.type.startsWith('date')) {
+                if (!activeFilters[key]) activeFilters[key] = {};
+                activeFilters[key][input.dataset.type] = input.value;
+            } else {
+                const selectedValues = Array.from(input.selectedOptions).map(opt => opt.value);
+                if (selectedValues.length > 0) activeFilters[key] = selectedValues;
+            }
+        });
+        
+        let filteredData = salesDataCache.filter(row => {
+            return Object.entries(activeFilters).every(([key, value]) => {
+                if (Array.isArray(value)) {
+                    return value.includes(String(row[key]));
+                }
+                if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+                    const rowDate = new Date(String(row[key]).replace(/\"/g, ''));
+                    if (isNaN(rowDate)) return true;
+                    const from = value['date-from'] ? new Date(value['date-from']) : null;
+                    const toRaw = value['date-to'] ? new Date(value['date-to']) : null;
+                    let to = toRaw ? new Date(new Date(toRaw).setHours(23, 59, 59, 999)) : null;
+                    if (from && rowDate < from) return false;
+                    if (to && rowDate > to) return false;
+                    return true;
+                }
+                return true;
+            });
+        });
+
+        if (sortKey) {
+            filteredData.sort((a, b) => {
+                const valA = a[sortKey], valB = b[sortKey];
+                if (String(valA) < String(valB)) return sortOrder === 'asc' ? -1 : 1;
+                if (String(valA) > String(valB)) return sortOrder === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        
+        updateFilterOptions();
+        renderTableBody(filteredData);
+    }
+    
+    function formatDate(dateString) {
+        if (!dateString) return '-';
+        const cleanString = String(dateString).replace(/\"/g, '');
+        const date = new Date(cleanString);
+        if (isNaN(date.getTime())) return '-';
+        return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+
+    // CORRECCIÓN: Lógica de selección de fila restaurada
+    function renderTableBody(data) {
+        const tableBody = document.getElementById('table-body');
+        tableBody.innerHTML = '';
+        data.forEach(row => {
+            const rowEl = document.createElement('tr');
+            const headers = Object.keys(salesDataCache[0] || {});
+            rowEl.innerHTML = headers.map(key => {
+                const cellValue = row[key];
+                let cellContent = String(cellValue || '-').replace(/\"/g, '');
+                if (key.toLowerCase().includes('fecha')) {
+                    cellContent = formatDate(cellValue);
+                }
+                return `<td>${cellContent}</td>`;
+            }).join('');
+
+            rowEl.addEventListener('click', () => {
+                if (rowEl.classList.contains('selected')) {
+                    rowEl.classList.remove('selected');
+                    clearDetails();
+                } else {
+                    document.querySelectorAll('#sales-table tbody tr').forEach(tr => tr.classList.remove('selected'));
+                    rowEl.classList.add('selected');
+                    showDetails(row);
+                }
+            });
+            tableBody.appendChild(rowEl);
         });
     }
 
-    // --- (Funciones de renderizado y filtros sin cambios) ---
-    function renderTableHeaders(headers) { const headerRow = document.getElementById('table-header'); headerRow.innerHTML = headers.map(key => `<th data-key="${key}">${key.replace(/_/g, ' ')} <span></span></th>`).join(''); headerRow.querySelectorAll('th').forEach(th => { th.addEventListener('click', () => { const key = th.dataset.key; const currentOrder = th.dataset.order || 'desc'; const newOrder = currentOrder === 'asc' ? 'desc' : 'asc'; headerRow.querySelectorAll('th').forEach(innerTh => { innerTh.dataset.order = ''; innerTh.querySelector('span').textContent = ''; }); th.querySelector('span').textContent = newOrder === 'asc' ? '▲' : '▼'; th.dataset.order = newOrder; applyFiltersAndSort(key, newOrder); }); }); }
-    function renderFilterRow(headers) { const filterRow = document.getElementById('filter-row'); filterRow.innerHTML = headers.map(key => { if (key.toLowerCase().includes('fecha')) { return `<th><div class="date-filter-container"><input type="date" class="filter-input" data-key="${key}" data-type="date-from" title="Fecha desde"><input type="date" class="filter-input" data-key="${key}" data-type="date-to" title="Fecha hasta"></div></th>`; } else { return `<th><select class="filter-input" data-key="${key}" multiple></select></th>`; } }).join(''); updateFilterOptions(); document.querySelectorAll('.filter-input').forEach(input => { input.addEventListener('change', () => applyFiltersAndSort()); }); }
-    function updateFilterOptions() { const headers = Object.keys(salesDataCache[0] || {}); headers.forEach(key => { if (key.toLowerCase().includes('fecha')) return; const otherFilters = { ...activeFilters }; delete otherFilters[key]; const relevantData = salesDataCache.filter(row => { return Object.entries(otherFilters).every(([filterKey, value]) => { if (Array.isArray(value) && value.length > 0) { return value.includes(String(row[filterKey])); } if (typeof value === 'object' && value !== null && !Array.isArray(value)) { const rowDate = new Date(String(row[filterKey]).replace(/\"/g, '')); if (isNaN(rowDate)) return true; const from = value['date-from'] ? new Date(value['date-from']) : null; const toRaw = value['date-to'] ? new Date(value['date-to']) : null; let to = toRaw ? new Date(new Date(toRaw).setHours(23, 59, 59, 999)) : null; if (from && rowDate < from) return false; if (to && rowDate > to) return false; return true; } return true; }); }); const select = document.querySelector(`.filter-input[data-key="${key}"]`); const currentSelections = activeFilters[key] || []; const options = [...new Set(relevantData.map(item => item[key]))].sort(); select.innerHTML = ''; options.forEach(option => { if (option) { const optionEl = document.createElement('option'); optionEl.value = option; optionEl.textContent = option; if (currentSelections.includes(option)) { optionEl.selected = true; } select.appendChild(optionEl); } }); }); }
-    function applyFiltersAndSort(sortKey = null, sortOrder = 'desc') { activeFilters = {}; document.querySelectorAll('.filter-input').forEach(input => { const key = input.dataset.key; if (input.type.startsWith('date')) { if (!activeFilters[key]) activeFilters[key] = {}; activeFilters[key][input.dataset.type] = input.value; } else { const selectedValues = Array.from(input.selectedOptions).map(opt => opt.value); if (selectedValues.length > 0) activeFilters[key] = selectedValues; } }); let filteredData = salesDataCache.filter(row => { return Object.entries(activeFilters).every(([key, value]) => { if (Array.isArray(value)) { return value.includes(String(row[key])); } if (typeof value === 'object'  && value !== null && !Array.isArray(value)) { const rowDate = new Date(String(row[key]).replace(/\"/g, '')); if (isNaN(rowDate)) return true; const from = value['date-from'] ? new Date(value['date-from']) : null; const toRaw = value['date-to'] ? new Date(value['date-to']) : null; let to = toRaw ? new Date(new Date(toRaw).setHours(23, 59, 59, 999)) : null; if (from && rowDate < from) return false; if (to && rowDate > to) return false; return true; } return true; }); }); if (sortKey) { filteredData.sort((a, b) => { const valA = a[sortKey], valB = b[sortKey]; if (String(valA) < String(valB)) return sortOrder === 'asc' ? -1 : 1; if (String(valA) > String(valB)) return sortOrder === 'asc' ? 1 : -1; return 0; }); } currentFilteredData = filteredData; updateFilterOptions(); renderTableBody(filteredData); }
-    function formatDate(dateString) { if (!dateString) return '-'; const cleanString = String(dateString).replace(/\"/g, ''); const date = new Date(cleanString); if (isNaN(date.getTime())) return '-'; return date.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }); }
-    function renderTableBody(data) { const tableBody = document.getElementById('table-body'); tableBody.innerHTML = ''; data.forEach(row => { const rowEl = document.createElement('tr'); const headers = Object.keys(salesDataCache[0] || {}); rowEl.innerHTML = headers.map(key => { const cellValue = row[key]; let cellContent = String(cellValue || '-').replace(/\"/g, ''); if (key.toLowerCase().includes('fecha')) { cellContent = formatDate(cellValue); } return `<td>${cellContent}</td>`; }).join(''); rowEl.addEventListener('click', () => { if (rowEl.classList.contains('selected')) { rowEl.classList.remove('selected'); clearDetails(); } else { document.querySelectorAll('#sales-table tbody tr').forEach(tr => tr.classList.remove('selected')); rowEl.classList.add('selected'); showDetails(row); } }); tableBody.appendChild(rowEl); }); }
-    function showDetails(row) { const detailsContainer = document.getElementById('details-container'); detailsContainer.innerHTML = Object.entries(row).map(([key, value]) => { let displayValue = String(value || '-').replace(/\"/g, ''); if (key.toLowerCase().includes('fecha')) { displayValue = formatDate(value); } return `<div class="detail-item"><div class="detail-item-label">${key.replace(/_/g, ' ')}</div><div>${displayValue}</div></div>`; }).join(''); }
-    function clearDetails() { const detailsContainer = document.getElementById('details-container'); detailsContainer.innerHTML = '<p class="details-placeholder">Selecciona una venta de la tabla para ver sus detalles</p>'; }
-    
-    // CORRECCIÓN: Lógica para enviar datos Y descargar el archivo de vuelta
-    async function sendDataToN8n(data) {
-        const n8nWebhookUrl = 'https://n8n.vozipyme.es/webhook/807a9c5a-fdd8-4455-a989-8487d42864b9';
-        const exportBtn = document.getElementById('export-btn');
-        const originalText = exportBtn.textContent;
-
-        if (data.length === 0) {
-            exportBtn.textContent = 'No hay datos';
-            setTimeout(() => { exportBtn.textContent = originalText; }, 2000);
-            return;
-        }
-
-        exportBtn.textContent = 'Generando...';
-        exportBtn.disabled = true;
-
-        try {
-            const response = await fetch(n8nWebhookUrl, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
-
-            if (!response.ok) throw new Error(`Error en n8n: ${response.statusText}`);
-
-            // Recibimos el archivo como un blob
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            const today = new Date().toISOString().slice(0, 10);
-            a.download = `export_ventas_${today}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-
-            exportBtn.textContent = '¡Descargado!';
-            exportBtn.style.backgroundColor = 'var(--success-color)';
-
-        } catch (error) {
-            console.error('Error al exportar:', error);
-            exportBtn.textContent = 'Error';
-            exportBtn.style.backgroundColor = 'var(--error-color)';
-        } finally {
-            setTimeout(() => {
-                exportBtn.textContent = originalText;
-                exportBtn.style.backgroundColor = 'var(--primary-color)';
-                exportBtn.disabled = false;
-            }, 3000);
-        }
+    function showDetails(row) {
+        const detailsContainer = document.getElementById('details-container');
+        detailsContainer.innerHTML = Object.entries(row).map(([key, value]) => {
+            let displayValue = String(value || '-').replace(/\"/g, '');
+            if (key.toLowerCase().includes('fecha')) {
+                displayValue = formatDate(value);
+            }
+            return `<div class="detail-item"><div class="detail-item-label">${key.replace(/_/g, ' ')}</div><div>${displayValue}</div></div>`;
+        }).join('');
     }
 
-    window.addEventListener('message', handleWindowMessage);
-    window.parent.postMessage('chatwoot-dashboard-app:loaded', '*');
+    function clearDetails() {
+        const detailsContainer = document.getElementById('details-container');
+        detailsContainer.innerHTML = '<p class="details-placeholder">Selecciona una venta de la tabla para ver sus detalles</p>';
+    }
 });
 </script>
 
 </body>
 </html>
-
